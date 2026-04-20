@@ -11,7 +11,9 @@
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "build:css": "npx @tailwindcss/cli -i ./static/css/input.css -o ./static/css/output.css --minify",
+    "watch:css": "npx @tailwindcss/cli -i ./static/css/input.css -o ./static/css/output.css --watch"
   },
   "repository": {
     "type": "git",
@@ -26,7 +28,9 @@
   "homepage": "https://github.com/NullOnSpace/chat-general#readme",
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@tailwindcss/cli": "^4.2.2",
     "@types/node": "^25.6.0",
+    "tailwindcss": "^4.2.2",
     "typescript": "^6.0.3"
   }
 }
