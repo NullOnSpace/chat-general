@@ -197,7 +197,7 @@ jobs:
         run: cargo build --release
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chat-server
           path: target/release/chat-server
@@ -233,7 +233,7 @@ jobs:
         run: cargo doc --no-deps --document-private-items
 
       - name: Upload documentation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: documentation
           path: target/doc
