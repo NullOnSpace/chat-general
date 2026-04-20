@@ -15,7 +15,10 @@ pub trait FriendRepository: Send + Sync {
         id: &FriendRequestId,
         status: FriendshipStatus,
     ) -> AppResult<()>;
-    async fn get_pending_requests_for_user(&self, user_id: &UserId) -> AppResult<Vec<FriendRequest>>;
+    async fn get_pending_requests_for_user(
+        &self,
+        user_id: &UserId,
+    ) -> AppResult<Vec<FriendRequest>>;
     async fn get_sent_requests_by_user(&self, user_id: &UserId) -> AppResult<Vec<FriendRequest>>;
     async fn has_pending_request(&self, from: &UserId, to: &UserId) -> AppResult<bool>;
 
@@ -63,7 +66,18 @@ impl FriendRepository for PostgresFriendRepository {
     }
 
     async fn get_request(&self, id: &FriendRequestId) -> AppResult<Option<FriendRequest>> {
-        let row = sqlx::query_as::<_, (uuid::Uuid, uuid::Uuid, uuid::Uuid, Option<String>, String, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>(
+        let row = sqlx::query_as::<
+            _,
+            (
+                uuid::Uuid,
+                uuid::Uuid,
+                uuid::Uuid,
+                Option<String>,
+                String,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(
             r#"
             SELECT id, from_user_id, to_user_id, message, status, created_at, updated_at
             FROM friend_requests
@@ -74,15 +88,19 @@ impl FriendRepository for PostgresFriendRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(row.map(|(id, from_user_id, to_user_id, message, status, created_at, updated_at)| FriendRequest {
-            id: FriendRequestId(id),
-            from_user: UserId::from(from_user_id),
-            to_user: UserId::from(to_user_id),
-            message,
-            status: status.parse().unwrap_or(FriendshipStatus::Pending),
-            created_at,
-            updated_at,
-        }))
+        Ok(row.map(
+            |(id, from_user_id, to_user_id, message, status, created_at, updated_at)| {
+                FriendRequest {
+                    id: FriendRequestId(id),
+                    from_user: UserId::from(from_user_id),
+                    to_user: UserId::from(to_user_id),
+                    message,
+                    status: status.parse().unwrap_or(FriendshipStatus::Pending),
+                    created_at,
+                    updated_at,
+                }
+            },
+        ))
     }
 
     async fn update_request_status(
@@ -100,14 +118,27 @@ impl FriendRepository for PostgresFriendRepository {
         .bind(id.0)
         .bind(status.to_string())
         .execute(&self.pool)
-        .await
-        ?;
+        .await?;
 
         Ok(())
     }
 
-    async fn get_pending_requests_for_user(&self, user_id: &UserId) -> AppResult<Vec<FriendRequest>> {
-        let rows = sqlx::query_as::<_, (uuid::Uuid, uuid::Uuid, uuid::Uuid, Option<String>, String, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>(
+    async fn get_pending_requests_for_user(
+        &self,
+        user_id: &UserId,
+    ) -> AppResult<Vec<FriendRequest>> {
+        let rows = sqlx::query_as::<
+            _,
+            (
+                uuid::Uuid,
+                uuid::Uuid,
+                uuid::Uuid,
+                Option<String>,
+                String,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(
             r#"
             SELECT id, from_user_id, to_user_id, message, status, created_at, updated_at
             FROM friend_requests
@@ -117,25 +148,39 @@ impl FriendRepository for PostgresFriendRepository {
         )
         .bind(user_id.0)
         .fetch_all(&self.pool)
-        .await
-        ?;
+        .await?;
 
         Ok(rows
             .into_iter()
-            .map(|(id, from_user_id, to_user_id, message, status, created_at, updated_at)| FriendRequest {
-                id: FriendRequestId(id),
-                from_user: UserId::from(from_user_id),
-                to_user: UserId::from(to_user_id),
-                message,
-                status: status.parse().unwrap_or(FriendshipStatus::Pending),
-                created_at,
-                updated_at,
-            })
+            .map(
+                |(id, from_user_id, to_user_id, message, status, created_at, updated_at)| {
+                    FriendRequest {
+                        id: FriendRequestId(id),
+                        from_user: UserId::from(from_user_id),
+                        to_user: UserId::from(to_user_id),
+                        message,
+                        status: status.parse().unwrap_or(FriendshipStatus::Pending),
+                        created_at,
+                        updated_at,
+                    }
+                },
+            )
             .collect())
     }
 
     async fn get_sent_requests_by_user(&self, user_id: &UserId) -> AppResult<Vec<FriendRequest>> {
-        let rows = sqlx::query_as::<_, (uuid::Uuid, uuid::Uuid, uuid::Uuid, Option<String>, String, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>(
+        let rows = sqlx::query_as::<
+            _,
+            (
+                uuid::Uuid,
+                uuid::Uuid,
+                uuid::Uuid,
+                Option<String>,
+                String,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(
             r#"
             SELECT id, from_user_id, to_user_id, message, status, created_at, updated_at
             FROM friend_requests
@@ -145,20 +190,23 @@ impl FriendRepository for PostgresFriendRepository {
         )
         .bind(user_id.0)
         .fetch_all(&self.pool)
-        .await
-        ?;
+        .await?;
 
         Ok(rows
             .into_iter()
-            .map(|(id, from_user_id, to_user_id, message, status, created_at, updated_at)| FriendRequest {
-                id: FriendRequestId(id),
-                from_user: UserId::from(from_user_id),
-                to_user: UserId::from(to_user_id),
-                message,
-                status: status.parse().unwrap_or(FriendshipStatus::Pending),
-                created_at,
-                updated_at,
-            })
+            .map(
+                |(id, from_user_id, to_user_id, message, status, created_at, updated_at)| {
+                    FriendRequest {
+                        id: FriendRequestId(id),
+                        from_user: UserId::from(from_user_id),
+                        to_user: UserId::from(to_user_id),
+                        message,
+                        status: status.parse().unwrap_or(FriendshipStatus::Pending),
+                        created_at,
+                        updated_at,
+                    }
+                },
+            )
             .collect())
     }
 
@@ -173,8 +221,7 @@ impl FriendRepository for PostgresFriendRepository {
         .bind(from.0)
         .bind(to.0)
         .fetch_one(&self.pool)
-        .await
-        ?;
+        .await?;
 
         Ok(row.0 > 0)
     }
@@ -192,8 +239,7 @@ impl FriendRepository for PostgresFriendRepository {
         .bind(&friendship.remark)
         .bind(friendship.created_at)
         .execute(&self.pool)
-        .await
-        ?;
+        .await?;
 
         Ok(friendship.clone())
     }
@@ -203,7 +249,16 @@ impl FriendRepository for PostgresFriendRepository {
         user_id: &UserId,
         friend_id: &UserId,
     ) -> AppResult<Option<Friendship>> {
-        let row = sqlx::query_as::<_, (uuid::Uuid, uuid::Uuid, uuid::Uuid, Option<String>, chrono::DateTime<chrono::Utc>)>(
+        let row = sqlx::query_as::<
+            _,
+            (
+                uuid::Uuid,
+                uuid::Uuid,
+                uuid::Uuid,
+                Option<String>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(
             r#"
             SELECT id, user_id, friend_id, remark, created_at
             FROM friendships
@@ -213,20 +268,30 @@ impl FriendRepository for PostgresFriendRepository {
         .bind(user_id.0)
         .bind(friend_id.0)
         .fetch_optional(&self.pool)
-        .await
-        ?;
+        .await?;
 
-        Ok(row.map(|(id, user_id, friend_id, remark, created_at)| Friendship {
-            id: FriendshipId(id),
-            user_id: UserId::from(user_id),
-            friend_id: UserId::from(friend_id),
-            remark,
-            created_at,
-        }))
+        Ok(
+            row.map(|(id, user_id, friend_id, remark, created_at)| Friendship {
+                id: FriendshipId(id),
+                user_id: UserId::from(user_id),
+                friend_id: UserId::from(friend_id),
+                remark,
+                created_at,
+            }),
+        )
     }
 
     async fn get_friends(&self, user_id: &UserId) -> AppResult<Vec<Friendship>> {
-        let rows = sqlx::query_as::<_, (uuid::Uuid, uuid::Uuid, uuid::Uuid, Option<String>, chrono::DateTime<chrono::Utc>)>(
+        let rows = sqlx::query_as::<
+            _,
+            (
+                uuid::Uuid,
+                uuid::Uuid,
+                uuid::Uuid,
+                Option<String>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(
             r#"
             SELECT id, user_id, friend_id, remark, created_at
             FROM friendships
@@ -236,8 +301,7 @@ impl FriendRepository for PostgresFriendRepository {
         )
         .bind(user_id.0)
         .fetch_all(&self.pool)
-        .await
-        ?;
+        .await?;
 
         Ok(rows
             .into_iter()
@@ -261,8 +325,7 @@ impl FriendRepository for PostgresFriendRepository {
         .bind(user_id.0)
         .bind(friend_id.0)
         .execute(&self.pool)
-        .await
-        ?;
+        .await?;
 
         Ok(())
     }
@@ -278,8 +341,7 @@ impl FriendRepository for PostgresFriendRepository {
         .bind(user_id.0)
         .bind(friend_id.0)
         .fetch_one(&self.pool)
-        .await
-        ?;
+        .await?;
 
         Ok(row.0 > 0)
     }
@@ -331,7 +393,10 @@ impl FriendRepository for InMemoryFriendRepository {
         Ok(())
     }
 
-    async fn get_pending_requests_for_user(&self, user_id: &UserId) -> AppResult<Vec<FriendRequest>> {
+    async fn get_pending_requests_for_user(
+        &self,
+        user_id: &UserId,
+    ) -> AppResult<Vec<FriendRequest>> {
         let requests = self.requests.read().await;
         Ok(requests
             .iter()
@@ -351,9 +416,9 @@ impl FriendRepository for InMemoryFriendRepository {
 
     async fn has_pending_request(&self, from: &UserId, to: &UserId) -> AppResult<bool> {
         let requests = self.requests.read().await;
-        Ok(requests
-            .iter()
-            .any(|r| r.from_user == *from && r.to_user == *to && r.status == FriendshipStatus::Pending))
+        Ok(requests.iter().any(|r| {
+            r.from_user == *from && r.to_user == *to && r.status == FriendshipStatus::Pending
+        }))
     }
 
     async fn create_friendship(&self, friendship: &Friendship) -> AppResult<Friendship> {
@@ -423,7 +488,7 @@ mod tests {
         let friendship = Friendship::new(user_id, friend_id);
 
         repo.create_friendship(&friendship).await.unwrap();
-        
+
         assert!(repo.is_friend(&user_id, &friend_id).await.unwrap());
         assert!(!repo.is_friend(&friend_id, &user_id).await.unwrap());
     }

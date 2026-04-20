@@ -1,9 +1,9 @@
-pub mod r#trait;
-pub mod jwt;
 pub mod api_key;
+pub mod jwt;
 pub mod password;
+pub mod r#trait;
 
-pub use r#trait::{AuthProvider, AuthUser, TokenPair, extract_token_from_header};
+pub use api_key::{ApiKey, ApiKeyAuthProvider};
 pub use jwt::{JwtAuthProvider, JwtClaims, TokenType};
-pub use api_key::{ApiKeyAuthProvider, ApiKey};
 pub use password::PasswordHasher;
+pub use r#trait::{extract_token_from_header, AuthProvider, AuthUser, TokenPair};

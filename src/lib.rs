@@ -1,16 +1,16 @@
+pub mod api;
+pub mod auth;
 pub mod config;
 pub mod domain;
 pub mod error;
-pub mod infra;
-pub mod auth;
-pub mod session;
-pub mod message;
-pub mod group;
-pub mod friend;
 pub mod event;
-pub mod api;
+pub mod friend;
+pub mod group;
+pub mod infra;
+pub mod message;
 pub mod server;
+pub mod session;
 
-pub use config::{Settings, LoggingSettings, init_logging, init_logging_with_settings};
+pub use config::{init_logging, init_logging_with_settings, LoggingSettings, Settings};
 pub use error::{AppError, AppResult, AuthError};
 pub use server::{ChatServer, ServerBuilder};

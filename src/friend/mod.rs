@@ -1,5 +1,5 @@
 mod manager;
 mod permission;
 
-pub use manager::{FriendService, FriendManager};
+pub use manager::{FriendManager, FriendService};
 pub use permission::ChatPermissionChecker;

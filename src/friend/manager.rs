@@ -57,17 +57,22 @@ impl<R: FriendRepository + 'static> FriendService for FriendManager<R> {
         }
 
         if self.repository.is_friend(&from, &to).await? {
-            return Err(AppError::Validation(FriendError::AlreadyFriends.to_string()));
+            return Err(AppError::Validation(
+                FriendError::AlreadyFriends.to_string(),
+            ));
         }
 
         if self.repository.has_pending_request(&from, &to).await? {
-            return Err(AppError::Validation(FriendError::RequestPending.to_string()));
+            return Err(AppError::Validation(
+                FriendError::RequestPending.to_string(),
+            ));
         }
 
         let request = FriendRequest::new(from, to, message);
         let saved = self.repository.create_request(&request).await?;
 
-        let _ = self.event_bus
+        let _ = self
+            .event_bus
             .publish(crate::event::Event::FriendRequestReceived {
                 request: saved.clone(),
             })
@@ -99,7 +104,8 @@ impl<R: FriendRepository + 'static> FriendService for FriendManager<R> {
         self.repository.create_friendship(&friendship1).await?;
         self.repository.create_friendship(&friendship2).await?;
 
-        let _ = self.event_bus
+        let _ = self
+            .event_bus
             .publish(crate::event::Event::FriendRequestAccepted {
                 friendship: friendship1.clone(),
             })
@@ -125,7 +131,8 @@ impl<R: FriendRepository + 'static> FriendService for FriendManager<R> {
             .update_request_status(request_id, FriendshipStatus::Rejected)
             .await?;
 
-        let _ = self.event_bus
+        let _ = self
+            .event_bus
             .publish(crate::event::Event::FriendRequestRejected {
                 request_id: *request_id,
             })
@@ -139,10 +146,15 @@ impl<R: FriendRepository + 'static> FriendService for FriendManager<R> {
             return Err(AppError::NotFound(FriendError::NotFriends.to_string()));
         }
 
-        self.repository.delete_friendship(user_id, friend_id).await?;
-        self.repository.delete_friendship(friend_id, user_id).await?;
+        self.repository
+            .delete_friendship(user_id, friend_id)
+            .await?;
+        self.repository
+            .delete_friendship(friend_id, user_id)
+            .await?;
 
-        let _ = self.event_bus
+        let _ = self
+            .event_bus
             .publish(crate::event::Event::FriendRemoved {
                 user_id: *user_id,
                 friend_id: *friend_id,

@@ -21,7 +21,8 @@ pub trait GroupService: Send + Sync {
 
 pub struct GroupManager {
     groups: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<GroupId, Group>>>,
-    user_groups: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<UserId, Vec<GroupId>>>>,
+    user_groups:
+        std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<UserId, Vec<GroupId>>>>,
 }
 
 impl Default for GroupManager {
@@ -34,7 +35,9 @@ impl GroupManager {
     pub fn new() -> Self {
         Self {
             groups: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-            user_groups: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            user_groups: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
     }
 
@@ -98,7 +101,9 @@ impl GroupService for GroupManager {
             .get_mut(group_id)
             .ok_or_else(|| AppError::NotFound("Group not found".to_string()))?;
 
-        group.add_member(user_id).map_err(|e| AppError::Conflict(e.to_string()))?;
+        group
+            .add_member(user_id)
+            .map_err(|e| AppError::Conflict(e.to_string()))?;
 
         {
             let mut user_groups = self.user_groups.write().await;
@@ -117,7 +122,9 @@ impl GroupService for GroupManager {
             .get_mut(group_id)
             .ok_or_else(|| AppError::NotFound("Group not found".to_string()))?;
 
-        group.remove_member(user_id).map_err(|e| AppError::Conflict(e.to_string()))?;
+        group
+            .remove_member(user_id)
+            .map_err(|e| AppError::Conflict(e.to_string()))?;
 
         {
             let mut user_groups = self.user_groups.write().await;
@@ -189,9 +196,12 @@ mod tests {
     async fn test_create_group() {
         let manager = GroupManager::new();
         let owner_id = UserId::new();
-        
-        let group = manager.create_group("Test Group".to_string(), owner_id).await.unwrap();
-        
+
+        let group = manager
+            .create_group("Test Group".to_string(), owner_id)
+            .await
+            .unwrap();
+
         assert_eq!(group.name, "Test Group");
         assert_eq!(group.owner_id, owner_id);
     }
@@ -201,10 +211,13 @@ mod tests {
         let manager = GroupManager::new();
         let owner_id = UserId::new();
         let member_id = UserId::new();
-        
-        let group = manager.create_group("Test".to_string(), owner_id).await.unwrap();
+
+        let group = manager
+            .create_group("Test".to_string(), owner_id)
+            .await
+            .unwrap();
         manager.add_member(&group.id, member_id).await.unwrap();
-        
+
         let retrieved = manager.get_group(&group.id).await.unwrap().unwrap();
         assert_eq!(retrieved.member_count(), 2);
     }
@@ -214,11 +227,14 @@ mod tests {
         let manager = GroupManager::new();
         let owner_id = UserId::new();
         let member_id = UserId::new();
-        
-        let group = manager.create_group("Test".to_string(), owner_id).await.unwrap();
+
+        let group = manager
+            .create_group("Test".to_string(), owner_id)
+            .await
+            .unwrap();
         manager.add_member(&group.id, member_id).await.unwrap();
         manager.remove_member(&group.id, &member_id).await.unwrap();
-        
+
         let retrieved = manager.get_group(&group.id).await.unwrap().unwrap();
         assert_eq!(retrieved.member_count(), 1);
     }
@@ -227,10 +243,16 @@ mod tests {
     async fn test_get_user_groups() {
         let manager = GroupManager::new();
         let user_id = UserId::new();
-        
-        manager.create_group("Group 1".to_string(), user_id).await.unwrap();
-        manager.create_group("Group 2".to_string(), user_id).await.unwrap();
-        
+
+        manager
+            .create_group("Group 1".to_string(), user_id)
+            .await
+            .unwrap();
+        manager
+            .create_group("Group 2".to_string(), user_id)
+            .await
+            .unwrap();
+
         let groups = manager.get_user_groups(&user_id).await.unwrap();
         assert_eq!(groups.len(), 2);
     }
@@ -240,10 +262,13 @@ mod tests {
         let manager = GroupManager::new();
         let owner_id = UserId::new();
         let member_id = UserId::new();
-        
-        let group = manager.create_group("Test".to_string(), owner_id).await.unwrap();
+
+        let group = manager
+            .create_group("Test".to_string(), owner_id)
+            .await
+            .unwrap();
         manager.add_member(&group.id, member_id).await.unwrap();
-        
+
         assert!(manager.is_admin(&group.id, &owner_id).await);
         assert!(!manager.is_admin(&group.id, &member_id).await);
     }

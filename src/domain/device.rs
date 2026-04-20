@@ -48,21 +48,16 @@ impl From<String> for DeviceId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum DeviceType {
+    #[default]
     Web,
     Mobile,
     Desktop,
     Bot,
     ThirdParty,
-}
-
-impl Default for DeviceType {
-    fn default() -> Self {
-        Self::Web
-    }
 }
 
 impl std::fmt::Display for DeviceType {
@@ -143,7 +138,7 @@ mod tests {
     fn test_device_creation() {
         let user_id = UserId::new();
         let device = Device::new(user_id, DeviceType::Web, "Chrome Browser".to_string());
-        
+
         assert_eq!(device.device_type, DeviceType::Web);
         assert_eq!(device.device_name, "Chrome Browser");
         assert!(device.push_token.is_none());
@@ -161,10 +156,10 @@ mod tests {
         let user_id = UserId::new();
         let mut device = Device::new(user_id, DeviceType::Web, "Test".to_string());
         let old_time = device.last_active_at;
-        
+
         std::thread::sleep(std::time::Duration::from_millis(10));
         device.update_last_active();
-        
+
         assert!(device.last_active_at > old_time);
     }
 

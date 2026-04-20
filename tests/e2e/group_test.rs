@@ -7,10 +7,10 @@ use serial_test::serial;
 async fn test_create_group() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/groups", app.base_url()))
+        .post(format!("{}/api/v1/groups", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .json(&json!({
             "name": "Test Group",
@@ -20,7 +20,10 @@ async fn test_create_group() {
         .await
         .expect("Failed to create group");
 
-    assert!(response.status().is_success(), "Create group should succeed");
+    assert!(
+        response.status().is_success(),
+        "Create group should succeed"
+    );
 
     let data: serde_json::Value = response.json().await.expect("Failed to parse response");
     assert!(data["id"].as_str().is_some(), "Should have group ID");
@@ -32,10 +35,10 @@ async fn test_create_group() {
 async fn test_create_group_empty_name() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/groups", app.base_url()))
+        .post(format!("{}/api/v1/groups", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .json(&json!({
             "name": ""
@@ -44,17 +47,20 @@ async fn test_create_group_empty_name() {
         .await
         .expect("Failed to create group");
 
-    assert!(!response.status().is_success(), "Create group with empty name should fail");
+    assert!(
+        !response.status().is_success(),
+        "Create group with empty name should fail"
+    );
 }
 
 #[tokio::test]
 #[serial]
 async fn test_create_group_unauthenticated() {
     let app = TestApp::new().await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/groups", app.base_url()))
+        .post(format!("{}/api/v1/groups", app.base_url()))
         .json(&json!({
             "name": "Test Group"
         }))
@@ -62,7 +68,10 @@ async fn test_create_group_unauthenticated() {
         .await
         .expect("Failed to create group");
 
-    assert!(!response.status().is_success(), "Create group without auth should fail");
+    assert!(
+        !response.status().is_success(),
+        "Create group without auth should fail"
+    );
 }
 
 #[tokio::test]
@@ -70,13 +79,13 @@ async fn test_create_group_unauthenticated() {
 async fn test_get_groups() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     create_test_group(&app, &user, "Test Group 1").await;
     create_test_group(&app, &user, "Test Group 2").await;
-    
+
     let client = app.client();
     let response = client
-        .get(&format!("{}/api/v1/groups", app.base_url()))
+        .get(format!("{}/api/v1/groups", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
@@ -94,10 +103,10 @@ async fn test_get_groups() {
 async fn test_get_groups_empty() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .get(&format!("{}/api/v1/groups", app.base_url()))
+        .get(format!("{}/api/v1/groups", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
@@ -116,16 +125,19 @@ async fn test_get_group_detail() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
     let group_id = create_test_group(&app, &user, "Detail Test Group").await;
-    
+
     let client = app.client();
     let response = client
-        .get(&format!("{}/api/v1/groups/{}", app.base_url(), group_id))
+        .get(format!("{}/api/v1/groups/{}", app.base_url(), group_id))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
         .expect("Failed to get group detail");
 
-    assert!(response.status().is_success(), "Get group detail should succeed");
+    assert!(
+        response.status().is_success(),
+        "Get group detail should succeed"
+    );
 
     let data: serde_json::Value = response.json().await.expect("Failed to parse response");
     assert_eq!(data["id"].as_str().unwrap(), group_id);
@@ -137,17 +149,20 @@ async fn test_get_group_detail() {
 async fn test_get_group_not_found() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let fake_id = uuid::Uuid::new_v4().to_string();
     let response = client
-        .get(&format!("{}/api/v1/groups/{}", app.base_url(), fake_id))
+        .get(format!("{}/api/v1/groups/{}", app.base_url(), fake_id))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
         .expect("Failed to get group detail");
 
-    assert!(!response.status().is_success(), "Get non-existent group should fail");
+    assert!(
+        !response.status().is_success(),
+        "Get non-existent group should fail"
+    );
 }
 
 #[tokio::test]
@@ -155,16 +170,19 @@ async fn test_get_group_not_found() {
 async fn test_get_group_invalid_id() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .get(&format!("{}/api/v1/groups/invalid_id", app.base_url()))
+        .get(format!("{}/api/v1/groups/invalid_id", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
         .expect("Failed to get group detail");
 
-    assert!(!response.status().is_success(), "Get group with invalid ID should fail");
+    assert!(
+        !response.status().is_success(),
+        "Get group with invalid ID should fail"
+    );
 }
 
 #[tokio::test]
@@ -174,10 +192,14 @@ async fn test_add_group_member() {
     let owner = TestUser::create_unique(&app).await;
     let member = TestUser::create_unique(&app).await;
     let group_id = create_test_group(&app, &owner, "Member Test Group").await;
-    
+
     let client = app.client();
     let response = client
-        .put(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .put(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .json(&json!({
             "user_id": member.id
@@ -186,7 +208,10 @@ async fn test_add_group_member() {
         .await
         .expect("Failed to add group member");
 
-    assert!(response.status().is_success(), "Add group member should succeed");
+    assert!(
+        response.status().is_success(),
+        "Add group member should succeed"
+    );
 }
 
 #[tokio::test]
@@ -195,10 +220,14 @@ async fn test_add_group_member_invalid_user() {
     let app = TestApp::new().await;
     let owner = TestUser::create_unique(&app).await;
     let group_id = create_test_group(&app, &owner, "Test Group").await;
-    
+
     let client = app.client();
     let response = client
-        .put(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .put(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .json(&json!({
             "user_id": "invalid_user_id"
@@ -207,7 +236,10 @@ async fn test_add_group_member_invalid_user() {
         .await
         .expect("Failed to add group member");
 
-    assert!(!response.status().is_success(), "Add invalid member should fail");
+    assert!(
+        !response.status().is_success(),
+        "Add invalid member should fail"
+    );
 }
 
 #[tokio::test]
@@ -217,11 +249,15 @@ async fn test_get_group_members() {
     let owner = TestUser::create_unique(&app).await;
     let member = TestUser::create_unique(&app).await;
     let group_id = create_test_group(&app, &owner, "Members Test Group").await;
-    
+
     let client = app.client();
-    
+
     client
-        .put(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .put(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .json(&json!({
             "user_id": member.id
@@ -231,17 +267,29 @@ async fn test_get_group_members() {
         .expect("Failed to add member");
 
     let response = client
-        .get(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .get(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .send()
         .await
         .expect("Failed to get group members");
 
-    assert!(response.status().is_success(), "Get group members should succeed");
+    assert!(
+        response.status().is_success(),
+        "Get group members should succeed"
+    );
 
     let data: serde_json::Value = response.json().await.expect("Failed to parse response");
-    let members = data["members"].as_array().expect("Should have members array");
-    assert!(members.len() >= 2, "Should have at least 2 members (owner + added member)");
+    let members = data["members"]
+        .as_array()
+        .expect("Should have members array");
+    assert!(
+        members.len() >= 2,
+        "Should have at least 2 members (owner + added member)"
+    );
 }
 
 #[tokio::test]
@@ -251,11 +299,15 @@ async fn test_remove_group_member() {
     let owner = TestUser::create_unique(&app).await;
     let member = TestUser::create_unique(&app).await;
     let group_id = create_test_group(&app, &owner, "Remove Member Test").await;
-    
+
     let client = app.client();
-    
+
     client
-        .put(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .put(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .json(&json!({
             "user_id": member.id
@@ -265,13 +317,21 @@ async fn test_remove_group_member() {
         .expect("Failed to add member");
 
     let response = client
-        .delete(&format!("{}/api/v1/groups/{}/members/{}", app.base_url(), group_id, member.id))
+        .delete(format!(
+            "{}/api/v1/groups/{}/members/{}",
+            app.base_url(),
+            group_id,
+            member.id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .send()
         .await
         .expect("Failed to remove group member");
 
-    assert!(response.status().is_success(), "Remove group member should succeed");
+    assert!(
+        response.status().is_success(),
+        "Remove group member should succeed"
+    );
 }
 
 #[tokio::test]
@@ -281,11 +341,11 @@ async fn test_group_flow_complete() {
     let owner = TestUser::create_unique(&app).await;
     let member1 = TestUser::create_unique(&app).await;
     let member2 = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
-    
+
     let create_response = client
-        .post(&format!("{}/api/v1/groups", app.base_url()))
+        .post(format!("{}/api/v1/groups", app.base_url()))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .json(&json!({
             "name": "Complete Flow Test Group",
@@ -299,7 +359,11 @@ async fn test_group_flow_complete() {
     let group_id = create_data["id"].as_str().expect("Should have group ID");
 
     let add1_response = client
-        .put(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .put(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .json(&json!({
             "user_id": member1.id
@@ -310,7 +374,11 @@ async fn test_group_flow_complete() {
     assert!(add1_response.status().is_success());
 
     let add2_response = client
-        .put(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .put(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .json(&json!({
             "user_id": member2.id
@@ -321,18 +389,29 @@ async fn test_group_flow_complete() {
     assert!(add2_response.status().is_success());
 
     let members_response = client
-        .get(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .get(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .send()
         .await
         .expect("Failed to get members");
     assert!(members_response.status().is_success());
     let members_data: serde_json::Value = members_response.json().await.expect("Failed to parse");
-    let members = members_data["members"].as_array().expect("Should have members");
+    let members = members_data["members"]
+        .as_array()
+        .expect("Should have members");
     assert!(members.len() >= 3, "Should have at least 3 members");
 
     let remove_response = client
-        .delete(&format!("{}/api/v1/groups/{}/members/{}", app.base_url(), group_id, member1.id))
+        .delete(format!(
+            "{}/api/v1/groups/{}/members/{}",
+            app.base_url(),
+            group_id,
+            member1.id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .send()
         .await
@@ -340,14 +419,25 @@ async fn test_group_flow_complete() {
     assert!(remove_response.status().is_success());
 
     let final_members_response = client
-        .get(&format!("{}/api/v1/groups/{}/members", app.base_url(), group_id))
+        .get(format!(
+            "{}/api/v1/groups/{}/members",
+            app.base_url(),
+            group_id
+        ))
         .header("Authorization", format!("Bearer {}", owner.access_token))
         .send()
         .await
         .expect("Failed to get final members");
-    let final_members_data: serde_json::Value = final_members_response.json().await.expect("Failed to parse");
-    let final_members = final_members_data["members"].as_array().expect("Should have members");
-    
-    let has_member1 = final_members.iter().any(|m| m["user_id"].as_str() == Some(&member1.id));
+    let final_members_data: serde_json::Value = final_members_response
+        .json()
+        .await
+        .expect("Failed to parse");
+    let final_members = final_members_data["members"]
+        .as_array()
+        .expect("Should have members");
+
+    let has_member1 = final_members
+        .iter()
+        .any(|m| m["user_id"].as_str() == Some(&member1.id));
     assert!(!has_member1, "Member1 should be removed");
 }

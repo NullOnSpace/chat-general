@@ -49,18 +49,13 @@ impl From<String> for ConversationId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ConversationType {
+    #[default]
     Direct,
     Group,
-}
-
-impl Default for ConversationType {
-    fn default() -> Self {
-        Self::Direct
-    }
 }
 
 impl std::fmt::Display for ConversationType {
@@ -164,7 +159,10 @@ impl Conversation {
     }
 
     pub fn get_unread_count(&self, user_id: &UserId) -> u32 {
-        self.unread_count.get(&user_id.to_string()).copied().unwrap_or(0)
+        self.unread_count
+            .get(&user_id.to_string())
+            .copied()
+            .unwrap_or(0)
     }
 }
 
@@ -245,7 +243,13 @@ mod tests {
 
     #[test]
     fn test_conversation_type_from_str() {
-        assert_eq!("direct".parse::<ConversationType>().unwrap(), ConversationType::Direct);
-        assert_eq!("GROUP".parse::<ConversationType>().unwrap(), ConversationType::Group);
+        assert_eq!(
+            "direct".parse::<ConversationType>().unwrap(),
+            ConversationType::Direct
+        );
+        assert_eq!(
+            "GROUP".parse::<ConversationType>().unwrap(),
+            ConversationType::Group
+        );
     }
 }

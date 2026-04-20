@@ -83,8 +83,8 @@ impl JwtAuthProvider {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::HS256);
         validation.set_issuer(&[&self.issuer]);
 
-        let token_data = decode::<JwtClaims>(token, &self.decoding_key, &validation)
-            .map_err(|e| AuthError::from(e))?;
+        let token_data =
+            decode::<JwtClaims>(token, &self.decoding_key, &validation).map_err(AuthError::from)?;
 
         Ok(token_data.claims)
     }
@@ -142,7 +142,12 @@ impl AuthProvider for JwtAuthProvider {
         }
 
         Ok(AuthUser {
-            user_id: UserId::from(claims.sub.parse::<Uuid>().map_err(|_| AuthError::InvalidToken)?),
+            user_id: UserId::from(
+                claims
+                    .sub
+                    .parse::<Uuid>()
+                    .map_err(|_| AuthError::InvalidToken)?,
+            ),
             username: claims.username,
             roles: claims.roles,
         })
@@ -165,8 +170,13 @@ impl AuthProvider for JwtAuthProvider {
             }
         }
 
-        let user_id = UserId::from(claims.sub.parse::<Uuid>().map_err(|_| AuthError::InvalidToken)?);
-        
+        let user_id = UserId::from(
+            claims
+                .sub
+                .parse::<Uuid>()
+                .map_err(|_| AuthError::InvalidToken)?,
+        );
+
         self.generate_tokens_for_user(&user_id, &claims.username, &claims.roles)
     }
 
@@ -196,12 +206,10 @@ mod tests {
     fn test_generate_and_validate_token() {
         let provider = create_test_provider();
         let user_id = UserId::new();
-        
-        let tokens = provider.generate_tokens_for_user(
-            &user_id,
-            "testuser",
-            &["user".to_string()],
-        ).unwrap();
+
+        let tokens = provider
+            .generate_tokens_for_user(&user_id, "testuser", &["user".to_string()])
+            .unwrap();
 
         assert!(!tokens.access_token.is_empty());
         assert!(!tokens.refresh_token.is_empty());
@@ -212,15 +220,13 @@ mod tests {
     async fn test_validate_access_token() {
         let provider = create_test_provider();
         let user_id = UserId::new();
-        
-        let tokens = provider.generate_tokens_for_user(
-            &user_id,
-            "testuser",
-            &["user".to_string()],
-        ).unwrap();
+
+        let tokens = provider
+            .generate_tokens_for_user(&user_id, "testuser", &["user".to_string()])
+            .unwrap();
 
         let auth_user = provider.validate_token(&tokens.access_token).await.unwrap();
-        
+
         assert_eq!(auth_user.username, "testuser");
         assert!(auth_user.has_role("user"));
     }
@@ -229,12 +235,10 @@ mod tests {
     async fn test_refresh_token_fails_for_access_token() {
         let provider = create_test_provider();
         let user_id = UserId::new();
-        
-        let tokens = provider.generate_tokens_for_user(
-            &user_id,
-            "testuser",
-            &[],
-        ).unwrap();
+
+        let tokens = provider
+            .generate_tokens_for_user(&user_id, "testuser", &[])
+            .unwrap();
 
         let result = provider.refresh_token(&tokens.access_token).await;
         assert!(result.is_err());
@@ -244,15 +248,13 @@ mod tests {
     async fn test_refresh_token_succeeds() {
         let provider = create_test_provider();
         let user_id = UserId::new();
-        
-        let tokens = provider.generate_tokens_for_user(
-            &user_id,
-            "testuser",
-            &["admin".to_string()],
-        ).unwrap();
+
+        let tokens = provider
+            .generate_tokens_for_user(&user_id, "testuser", &["admin".to_string()])
+            .unwrap();
 
         let new_tokens = provider.refresh_token(&tokens.refresh_token).await.unwrap();
-        
+
         assert!(!new_tokens.access_token.is_empty());
         assert!(!new_tokens.refresh_token.is_empty());
     }

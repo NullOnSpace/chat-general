@@ -9,11 +9,33 @@ use crate::error::AppResult;
 pub trait ConversationRepository: Send + Sync {
     async fn create(&self, conversation: &Conversation) -> AppResult<Conversation>;
     async fn find_by_id(&self, id: &ConversationId) -> AppResult<Option<Conversation>>;
-    async fn find_by_participants(&self, user1: &UserId, user2: &UserId) -> AppResult<Option<Conversation>>;
-    async fn find_by_user(&self, user_id: &UserId, limit: i64, offset: i64) -> AppResult<Vec<Conversation>>;
-    async fn add_participant(&self, conversation_id: &ConversationId, user_id: &UserId) -> AppResult<()>;
-    async fn remove_participant(&self, conversation_id: &ConversationId, user_id: &UserId) -> AppResult<()>;
-    async fn update_last_message(&self, conversation_id: &ConversationId, message_id: &uuid::Uuid, sent_at: DateTime<Utc>) -> AppResult<()>;
+    async fn find_by_participants(
+        &self,
+        user1: &UserId,
+        user2: &UserId,
+    ) -> AppResult<Option<Conversation>>;
+    async fn find_by_user(
+        &self,
+        user_id: &UserId,
+        limit: i64,
+        offset: i64,
+    ) -> AppResult<Vec<Conversation>>;
+    async fn add_participant(
+        &self,
+        conversation_id: &ConversationId,
+        user_id: &UserId,
+    ) -> AppResult<()>;
+    async fn remove_participant(
+        &self,
+        conversation_id: &ConversationId,
+        user_id: &UserId,
+    ) -> AppResult<()>;
+    async fn update_last_message(
+        &self,
+        conversation_id: &ConversationId,
+        message_id: &uuid::Uuid,
+        sent_at: DateTime<Utc>,
+    ) -> AppResult<()>;
     async fn delete(&self, id: &ConversationId) -> AppResult<()>;
 }
 
@@ -63,12 +85,11 @@ impl ConversationRepository for PostgresConversationRepository {
     }
 
     async fn find_by_id(&self, id: &ConversationId) -> AppResult<Option<Conversation>> {
-        let mut record = sqlx::query_as::<_, Conversation>(
-            "SELECT * FROM conversations WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .fetch_optional(&self.pool)
-        .await?;
+        let mut record =
+            sqlx::query_as::<_, Conversation>("SELECT * FROM conversations WHERE id = $1")
+                .bind(id.as_uuid())
+                .fetch_optional(&self.pool)
+                .await?;
 
         if let Some(ref mut conv) = record {
             let participants: Vec<UserId> = sqlx::query_scalar(
@@ -84,7 +105,11 @@ impl ConversationRepository for PostgresConversationRepository {
         Ok(record)
     }
 
-    async fn find_by_participants(&self, user1: &UserId, user2: &UserId) -> AppResult<Option<Conversation>> {
+    async fn find_by_participants(
+        &self,
+        user1: &UserId,
+        user2: &UserId,
+    ) -> AppResult<Option<Conversation>> {
         let conversation_id: Option<uuid::Uuid> = sqlx::query_scalar(
             r#"
             SELECT cp1.conversation_id
@@ -107,7 +132,12 @@ impl ConversationRepository for PostgresConversationRepository {
         }
     }
 
-    async fn find_by_user(&self, user_id: &UserId, limit: i64, offset: i64) -> AppResult<Vec<Conversation>> {
+    async fn find_by_user(
+        &self,
+        user_id: &UserId,
+        limit: i64,
+        offset: i64,
+    ) -> AppResult<Vec<Conversation>> {
         let records = sqlx::query_as::<_, Conversation>(
             r#"
             SELECT c.* 
@@ -127,7 +157,11 @@ impl ConversationRepository for PostgresConversationRepository {
         Ok(records)
     }
 
-    async fn add_participant(&self, conversation_id: &ConversationId, user_id: &UserId) -> AppResult<()> {
+    async fn add_participant(
+        &self,
+        conversation_id: &ConversationId,
+        user_id: &UserId,
+    ) -> AppResult<()> {
         sqlx::query(
             "INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2)",
         )
@@ -139,7 +173,11 @@ impl ConversationRepository for PostgresConversationRepository {
         Ok(())
     }
 
-    async fn remove_participant(&self, conversation_id: &ConversationId, user_id: &UserId) -> AppResult<()> {
+    async fn remove_participant(
+        &self,
+        conversation_id: &ConversationId,
+        user_id: &UserId,
+    ) -> AppResult<()> {
         sqlx::query(
             "DELETE FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2",
         )
@@ -151,7 +189,12 @@ impl ConversationRepository for PostgresConversationRepository {
         Ok(())
     }
 
-    async fn update_last_message(&self, conversation_id: &ConversationId, message_id: &uuid::Uuid, sent_at: DateTime<Utc>) -> AppResult<()> {
+    async fn update_last_message(
+        &self,
+        conversation_id: &ConversationId,
+        message_id: &uuid::Uuid,
+        sent_at: DateTime<Utc>,
+    ) -> AppResult<()> {
         sqlx::query(
             r#"
             UPDATE conversations 

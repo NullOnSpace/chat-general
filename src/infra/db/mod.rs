@@ -1,16 +1,16 @@
-pub mod user_repository;
-pub mod device_repository;
 pub mod conversation_repository;
-pub mod message_repository;
-pub mod group_repository;
+pub mod device_repository;
 pub mod friend_repository;
+pub mod group_repository;
+pub mod message_repository;
+pub mod user_repository;
 
-pub use user_repository::{UserRepository, PostgresUserRepository};
-pub use device_repository::{DeviceRepository, PostgresDeviceRepository};
 pub use conversation_repository::{ConversationRepository, PostgresConversationRepository};
-pub use message_repository::{MessageRepository, PostgresMessageRepository};
+pub use device_repository::{DeviceRepository, PostgresDeviceRepository};
+pub use friend_repository::{FriendRepository, InMemoryFriendRepository, PostgresFriendRepository};
 pub use group_repository::{GroupRepository, PostgresGroupRepository};
-pub use friend_repository::{FriendRepository, PostgresFriendRepository, InMemoryFriendRepository};
+pub use message_repository::{MessageRepository, PostgresMessageRepository};
+pub use user_repository::{PostgresUserRepository, UserRepository};
 
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::time::Duration;

@@ -87,10 +87,7 @@ impl IntoResponse for AppError {
             }
             AppError::Redis(e) => {
                 tracing::error!("Redis error: {}", e);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Cache error".to_string(),
-                )
+                (StatusCode::INTERNAL_SERVER_ERROR, "Cache error".to_string())
             }
             AppError::Auth(e) => match e {
                 AuthError::InvalidCredentials => (StatusCode::UNAUTHORIZED, e.to_string()),
@@ -111,7 +108,10 @@ impl IntoResponse for AppError {
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
             AppError::Internal(msg) => {
                 tracing::error!("Internal error: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error".to_string(),
+                )
             }
             AppError::RateLimitExceeded => (StatusCode::TOO_MANY_REQUESTS, self.to_string()),
             AppError::ServiceUnavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),

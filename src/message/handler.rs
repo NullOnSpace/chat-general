@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
 use crate::domain::Message;
-use crate::session::Session;
 use crate::error::AppResult;
+use crate::session::Session;
 
 #[derive(Debug, Clone)]
 pub enum HandlerAction {
@@ -14,11 +14,7 @@ pub enum HandlerAction {
 
 #[async_trait]
 pub trait MessageHandler: Send + Sync {
-    async fn on_message(
-        &self,
-        message: &Message,
-        session: &Session,
-    ) -> AppResult<HandlerAction>;
+    async fn on_message(&self, message: &Message, session: &Session) -> AppResult<HandlerAction>;
 }
 
 pub struct HandlerChain {
@@ -27,10 +23,12 @@ pub struct HandlerChain {
 
 impl HandlerChain {
     pub fn new() -> Self {
-        Self { handlers: Vec::new() }
+        Self {
+            handlers: Vec::new(),
+        }
     }
 
-    pub fn add(mut self, handler: Box<dyn MessageHandler>) -> Self {
+    pub fn with_handler(mut self, handler: Box<dyn MessageHandler>) -> Self {
         self.handlers.push(handler);
         self
     }
@@ -62,11 +60,7 @@ pub struct LoggingHandler;
 
 #[async_trait]
 impl MessageHandler for LoggingHandler {
-    async fn on_message(
-        &self,
-        message: &Message,
-        _session: &Session,
-    ) -> AppResult<HandlerAction> {
+    async fn on_message(&self, message: &Message, _session: &Session) -> AppResult<HandlerAction> {
         tracing::info!(
             "Message from {} to conversation {}: {}",
             message.sender_id,
@@ -89,11 +83,7 @@ impl ContentFilterHandler {
 
 #[async_trait]
 impl MessageHandler for ContentFilterHandler {
-    async fn on_message(
-        &self,
-        message: &Message,
-        _session: &Session,
-    ) -> AppResult<HandlerAction> {
+    async fn on_message(&self, message: &Message, _session: &Session) -> AppResult<HandlerAction> {
         let content_lower = message.content.to_lowercase();
         for word in &self.blocked_words {
             if content_lower.contains(&word.to_lowercase()) {
@@ -114,15 +104,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_handler_chain() {
-        let chain = HandlerChain::new()
-            .add(Box::new(LoggingHandler));
-        
+        let chain = HandlerChain::new().with_handler(Box::new(LoggingHandler));
+
         let conv_id = ConversationId::new();
         let user_id = UserId::new();
         let device_id = crate::domain::DeviceId::new();
         let session = Session::new(user_id, device_id);
         let message = Message::text(conv_id, user_id, "Test message".to_string());
-        
+
         let result = chain.process(message, &session).await.unwrap();
         assert_eq!(result.content, "Test message");
     }
@@ -130,16 +119,16 @@ mod tests {
     #[tokio::test]
     async fn test_content_filter() {
         let filter = ContentFilterHandler::new(vec!["spam".to_string()]);
-        
+
         let conv_id = ConversationId::new();
         let user_id = UserId::new();
         let device_id = crate::domain::DeviceId::new();
         let session = Session::new(user_id, device_id);
-        
+
         let good_message = Message::text(conv_id, user_id, "Hello world".to_string());
         let result = filter.on_message(&good_message, &session).await.unwrap();
         assert!(matches!(result, HandlerAction::Continue));
-        
+
         let bad_message = Message::text(conv_id, user_id, "This is spam!".to_string());
         let result = filter.on_message(&bad_message, &session).await.unwrap();
         assert!(matches!(result, HandlerAction::Reject(_)));

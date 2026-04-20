@@ -48,12 +48,10 @@ impl DeviceRepository for PostgresDeviceRepository {
     }
 
     async fn find_by_id(&self, id: &DeviceId) -> AppResult<Option<Device>> {
-        let record = sqlx::query_as::<_, Device>(
-            "SELECT * FROM devices WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .fetch_optional(&self.pool)
-        .await?;
+        let record = sqlx::query_as::<_, Device>("SELECT * FROM devices WHERE id = $1")
+            .bind(id.as_uuid())
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(record)
     }
@@ -70,24 +68,20 @@ impl DeviceRepository for PostgresDeviceRepository {
     }
 
     async fn update_last_active(&self, id: &DeviceId) -> AppResult<()> {
-        sqlx::query(
-            "UPDATE devices SET last_active_at = NOW() WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE devices SET last_active_at = NOW() WHERE id = $1")
+            .bind(id.as_uuid())
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }
 
     async fn update_push_token(&self, id: &DeviceId, token: &str) -> AppResult<()> {
-        sqlx::query(
-            "UPDATE devices SET push_token = $2 WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .bind(token)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE devices SET push_token = $2 WHERE id = $1")
+            .bind(id.as_uuid())
+            .bind(token)
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }

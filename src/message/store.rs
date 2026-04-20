@@ -42,7 +42,9 @@ impl Default for InMemoryMessageStore {
 impl InMemoryMessageStore {
     pub fn new() -> Self {
         Self {
-            messages: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            messages: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
     }
 }
@@ -77,10 +79,10 @@ impl MessageStore for InMemoryMessageStore {
             })
             .cloned()
             .collect();
-        
+
         result.sort_by(|a, b| b.created_at.cmp(&a.created_at));
         result.truncate(limit as usize);
-        
+
         Ok(result)
     }
 
@@ -112,10 +114,10 @@ mod tests {
         let store = InMemoryMessageStore::new();
         let conv_id = ConversationId::new();
         let user_id = UserId::new();
-        
+
         let message = Message::text(conv_id, user_id, "Hello".to_string());
         let stored = store.store(&message).await.unwrap();
-        
+
         let retrieved = store.get_by_id(&stored.id).await.unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().content, "Hello");
@@ -126,13 +128,13 @@ mod tests {
         let store = InMemoryMessageStore::new();
         let conv_id = ConversationId::new();
         let user_id = UserId::new();
-        
+
         for i in 0..5 {
             let msg = Message::text(conv_id, user_id, format!("Message {}", i));
             store.store(&msg).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
-        
+
         let history = store.get_history(&conv_id, None, 3).await.unwrap();
         assert_eq!(history.len(), 3);
     }

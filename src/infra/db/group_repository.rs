@@ -13,7 +13,12 @@ pub trait GroupRepository: Send + Sync {
     async fn delete(&self, id: &GroupId) -> AppResult<()>;
     async fn add_member(&self, group_id: &GroupId, member: &GroupMember) -> AppResult<()>;
     async fn remove_member(&self, group_id: &GroupId, user_id: &UserId) -> AppResult<()>;
-    async fn update_member_role(&self, group_id: &GroupId, user_id: &UserId, role: GroupRole) -> AppResult<()>;
+    async fn update_member_role(
+        &self,
+        group_id: &GroupId,
+        user_id: &UserId,
+        role: GroupRole,
+    ) -> AppResult<()>;
     async fn find_public_groups(&self, limit: i64, offset: i64) -> AppResult<Vec<Group>>;
 }
 
@@ -44,7 +49,7 @@ impl GroupRepository for PostgresGroupRepository {
         .bind(&group.description)
         .bind(&group.avatar_url)
         .bind(group.owner_id.as_uuid())
-        .bind(group.max_members as i32)
+        .bind(group.max_members)
         .bind(group.is_public)
         .bind(&group.invite_link)
         .bind(group.created_at)
@@ -74,20 +79,17 @@ impl GroupRepository for PostgresGroupRepository {
     }
 
     async fn find_by_id(&self, id: &GroupId) -> AppResult<Option<Group>> {
-        let mut record = sqlx::query_as::<_, Group>(
-            "SELECT * FROM groups WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .fetch_optional(&self.pool)
-        .await?;
+        let mut record = sqlx::query_as::<_, Group>("SELECT * FROM groups WHERE id = $1")
+            .bind(id.as_uuid())
+            .fetch_optional(&self.pool)
+            .await?;
 
         if let Some(ref mut group) = record {
-            let members = sqlx::query_as::<_, GroupMember>(
-                "SELECT * FROM group_members WHERE group_id = $1",
-            )
-            .bind(id.as_uuid())
-            .fetch_all(&self.pool)
-            .await?;
+            let members =
+                sqlx::query_as::<_, GroupMember>("SELECT * FROM group_members WHERE group_id = $1")
+                    .bind(id.as_uuid())
+                    .fetch_all(&self.pool)
+                    .await?;
 
             group.members = members;
         }
@@ -125,7 +127,7 @@ impl GroupRepository for PostgresGroupRepository {
         .bind(&group.name)
         .bind(&group.description)
         .bind(&group.avatar_url)
-        .bind(group.max_members as i32)
+        .bind(group.max_members)
         .bind(group.is_public)
         .bind(&group.invite_link)
         .fetch_one(&self.pool)
@@ -167,13 +169,11 @@ impl GroupRepository for PostgresGroupRepository {
     }
 
     async fn remove_member(&self, group_id: &GroupId, user_id: &UserId) -> AppResult<()> {
-        let result = sqlx::query(
-            "DELETE FROM group_members WHERE group_id = $1 AND user_id = $2",
-        )
-        .bind(group_id.as_uuid())
-        .bind(user_id.as_uuid())
-        .execute(&self.pool)
-        .await?;
+        let result = sqlx::query("DELETE FROM group_members WHERE group_id = $1 AND user_id = $2")
+            .bind(group_id.as_uuid())
+            .bind(user_id.as_uuid())
+            .execute(&self.pool)
+            .await?;
 
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound("Group member not found".to_string()));
@@ -182,15 +182,19 @@ impl GroupRepository for PostgresGroupRepository {
         Ok(())
     }
 
-    async fn update_member_role(&self, group_id: &GroupId, user_id: &UserId, role: GroupRole) -> AppResult<()> {
-        let result = sqlx::query(
-            "UPDATE group_members SET role = $3 WHERE group_id = $1 AND user_id = $2",
-        )
-        .bind(group_id.as_uuid())
-        .bind(user_id.as_uuid())
-        .bind(role.to_string())
-        .execute(&self.pool)
-        .await?;
+    async fn update_member_role(
+        &self,
+        group_id: &GroupId,
+        user_id: &UserId,
+        role: GroupRole,
+    ) -> AppResult<()> {
+        let result =
+            sqlx::query("UPDATE group_members SET role = $3 WHERE group_id = $1 AND user_id = $2")
+                .bind(group_id.as_uuid())
+                .bind(user_id.as_uuid())
+                .bind(role.to_string())
+                .execute(&self.pool)
+                .await?;
 
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound("Group member not found".to_string()));

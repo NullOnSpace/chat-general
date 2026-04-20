@@ -1,7 +1,7 @@
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::{DeviceId, UserId};
@@ -116,7 +116,7 @@ impl SessionManager {
     pub async fn get_by_device(&self, device_id: &DeviceId) -> Option<Session> {
         let device_sessions = self.device_sessions.read().await;
         let session_id = device_sessions.get(device_id)?;
-        
+
         let sessions = self.sessions.read().await;
         sessions.get(session_id).cloned()
     }
@@ -199,9 +199,9 @@ mod tests {
         let manager = SessionManager::new();
         let user_id = UserId::new();
         let device_id = DeviceId::new();
-        
+
         let session = manager.create(user_id, device_id).await.unwrap();
-        
+
         assert_eq!(session.user_id, user_id);
         assert_eq!(session.device_id, device_id);
     }
@@ -211,10 +211,10 @@ mod tests {
         let manager = SessionManager::new();
         let user_id = UserId::new();
         let device_id = DeviceId::new();
-        
+
         let session = manager.create(user_id, device_id).await.unwrap();
         let session_id = session.id;
-        
+
         let retrieved = manager.get(&session_id).await.unwrap();
         assert_eq!(retrieved.user_id, user_id);
     }
@@ -224,9 +224,9 @@ mod tests {
         let manager = SessionManager::new();
         let user_id = UserId::new();
         let device_id = DeviceId::new();
-        
+
         manager.create(user_id, device_id).await.unwrap();
-        
+
         let session = manager.get_by_device(&device_id).await.unwrap();
         assert_eq!(session.user_id, user_id);
     }
@@ -236,12 +236,12 @@ mod tests {
         let manager = SessionManager::new();
         let user_id = UserId::new();
         let device_id = DeviceId::new();
-        
+
         let session = manager.create(user_id, device_id).await.unwrap();
         let session_id = session.id;
-        
+
         manager.terminate(&session_id).await.unwrap();
-        
+
         let retrieved = manager.get(&session_id).await;
         assert!(retrieved.is_none());
     }
@@ -250,10 +250,10 @@ mod tests {
     async fn test_get_user_sessions() {
         let manager = SessionManager::new();
         let user_id = UserId::new();
-        
+
         manager.create(user_id, DeviceId::new()).await.unwrap();
         manager.create(user_id, DeviceId::new()).await.unwrap();
-        
+
         let sessions = manager.get_user_sessions(&user_id).await;
         assert_eq!(sessions.len(), 2);
     }
@@ -262,13 +262,13 @@ mod tests {
     async fn test_terminate_user_sessions() {
         let manager = SessionManager::new();
         let user_id = UserId::new();
-        
+
         manager.create(user_id, DeviceId::new()).await.unwrap();
         manager.create(user_id, DeviceId::new()).await.unwrap();
-        
+
         let terminated = manager.terminate_user_sessions(&user_id).await.unwrap();
         assert_eq!(terminated.len(), 2);
-        
+
         let sessions = manager.get_user_sessions(&user_id).await;
         assert!(sessions.is_empty());
     }

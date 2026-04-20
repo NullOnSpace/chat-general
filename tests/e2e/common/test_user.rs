@@ -15,9 +15,9 @@ impl TestUser {
     pub async fn create(app: &TestApp, username: &str) -> Self {
         let client = app.client();
         let email = format!("{}@test.example.com", username);
-        
+
         let _register_response = client
-            .post(&format!("{}/api/v1/auth/register", app.base_url()))
+            .post(format!("{}/api/v1/auth/register", app.base_url()))
             .json(&json!({
                 "username": username,
                 "email": email,
@@ -28,7 +28,7 @@ impl TestUser {
             .expect("Failed to register user");
 
         let login_response = client
-            .post(&format!("{}/api/v1/auth/login", app.base_url()))
+            .post(format!("{}/api/v1/auth/login", app.base_url()))
             .json(&json!({
                 "username": username,
                 "password": "password123"
@@ -43,11 +43,20 @@ impl TestUser {
             .expect("Failed to parse login response");
 
         Self {
-            id: login_data["user"]["id"].as_str().unwrap_or_default().to_string(),
+            id: login_data["user"]["id"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
             username: username.to_string(),
             email,
-            access_token: login_data["access_token"].as_str().unwrap_or_default().to_string(),
-            refresh_token: login_data["refresh_token"].as_str().unwrap_or_default().to_string(),
+            access_token: login_data["access_token"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            refresh_token: login_data["refresh_token"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
         }
     }
 

@@ -80,7 +80,7 @@ impl ChatPermissionChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{FriendRequest, Friendship, FriendRequestId};
+    use crate::domain::{FriendRequest, FriendRequestId, Friendship};
     use crate::friend::FriendService;
     use async_trait::async_trait;
 
@@ -168,12 +168,7 @@ mod tests {
 
         let checker = ChatPermissionChecker::new(std::sync::Arc::new(mock));
 
-        assert!(
-            !checker
-                .can_start_direct_chat(&user1, &user2)
-                .await
-                .unwrap()
-        );
+        assert!(!checker.can_start_direct_chat(&user1, &user2).await.unwrap());
     }
 
     #[tokio::test]
@@ -196,12 +191,10 @@ mod tests {
         let checker = ChatPermissionChecker::new(std::sync::Arc::new(mock));
 
         let participants = vec![user1, user2, user3];
-        assert!(
-            checker
-                .can_send_message(&user1, ConversationType::Group, &participants)
-                .await
-                .unwrap()
-        );
+        assert!(checker
+            .can_send_message(&user1, ConversationType::Group, &participants)
+            .await
+            .unwrap());
     }
 
     #[tokio::test]

@@ -1,3 +1,3 @@
 pub mod redis;
 
-pub use redis::{RedisCache, OnlineStatusCache, TokenBlacklist};
+pub use redis::{OnlineStatusCache, RedisCache, TokenBlacklist};

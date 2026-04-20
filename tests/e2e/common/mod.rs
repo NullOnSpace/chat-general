@@ -1,7 +1,7 @@
 pub mod fixture;
 pub mod test_app;
-pub mod test_user;
 pub mod test_app_db;
+pub mod test_user;
 
 pub use fixture::*;
 pub use test_app::*;

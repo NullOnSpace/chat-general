@@ -1,7 +1,7 @@
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use async_trait::async_trait;
 
 use crate::domain::User;
 use crate::error::{AppError, AppResult};
@@ -40,12 +40,14 @@ impl InMemoryUserStore {
         if self.users_by_email.contains_key(&user.email) {
             return Err(AppError::Conflict("Email already exists".to_string()));
         }
-        
+
         let user_clone = user.clone();
-        self.users_by_id.insert(user.id.to_string(), user_clone.clone());
-        self.users_by_username.insert(user.username.clone(), user_clone.clone());
+        self.users_by_id
+            .insert(user.id.to_string(), user_clone.clone());
+        self.users_by_username
+            .insert(user.username.clone(), user_clone.clone());
         self.users_by_email.insert(user.email.clone(), user_clone);
-        
+
         Ok(user)
     }
 
@@ -68,7 +70,10 @@ impl InMemoryUserStore {
             .filter(|u| {
                 u.username.to_lowercase().contains(&query_lower)
                     || u.email.to_lowercase().contains(&query_lower)
-                    || u.display_name.as_ref().map(|d| d.to_lowercase().contains(&query_lower)).unwrap_or(false)
+                    || u.display_name
+                        .as_ref()
+                        .map(|d| d.to_lowercase().contains(&query_lower))
+                        .unwrap_or(false)
             })
             .cloned()
             .collect()

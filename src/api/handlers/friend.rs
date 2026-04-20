@@ -14,12 +14,15 @@ use crate::error::{AppError, AppResult};
 
 pub async fn get_friends(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<AuthorizationHeader>,
+    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
+        AuthorizationHeader,
+    >,
 ) -> AppResult<Json<serde_json::Value>> {
     let user_id = get_current_user_id(&state, headers.token()).await?;
     let friends = state.friend_service.get_friends(&user_id).await?;
 
-    let response: Vec<FriendshipResponse> = friends.into_iter().map(FriendshipResponse::from).collect();
+    let response: Vec<FriendshipResponse> =
+        friends.into_iter().map(FriendshipResponse::from).collect();
 
     Ok(Json(json!({
         "friends": response
@@ -28,7 +31,9 @@ pub async fn get_friends(
 
 pub async fn delete_friend(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<AuthorizationHeader>,
+    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
+        AuthorizationHeader,
+    >,
     Path(friend_id): Path<String>,
 ) -> AppResult<Json<SuccessResponse>> {
     let user_id = get_current_user_id(&state, headers.token()).await?;
@@ -36,7 +41,10 @@ pub async fn delete_friend(
         .map_err(|_| AppError::Validation("Invalid friend ID".into()))?;
     let friend_user_id = UserId::from(friend_uuid);
 
-    state.friend_service.remove_friend(&user_id, &friend_user_id).await?;
+    state
+        .friend_service
+        .remove_friend(&user_id, &friend_user_id)
+        .await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -46,12 +54,17 @@ pub async fn delete_friend(
 
 pub async fn get_pending_requests(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<AuthorizationHeader>,
+    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
+        AuthorizationHeader,
+    >,
 ) -> AppResult<Json<serde_json::Value>> {
     let user_id = get_current_user_id(&state, headers.token()).await?;
     let requests = state.friend_service.get_pending_requests(&user_id).await?;
 
-    let response: Vec<FriendRequestResponse> = requests.into_iter().map(FriendRequestResponse::from).collect();
+    let response: Vec<FriendRequestResponse> = requests
+        .into_iter()
+        .map(FriendRequestResponse::from)
+        .collect();
 
     Ok(Json(json!({
         "requests": response
@@ -60,12 +73,17 @@ pub async fn get_pending_requests(
 
 pub async fn get_sent_requests(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<AuthorizationHeader>,
+    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
+        AuthorizationHeader,
+    >,
 ) -> AppResult<Json<serde_json::Value>> {
     let user_id = get_current_user_id(&state, headers.token()).await?;
     let requests = state.friend_service.get_sent_requests(&user_id).await?;
 
-    let response: Vec<FriendRequestResponse> = requests.into_iter().map(FriendRequestResponse::from).collect();
+    let response: Vec<FriendRequestResponse> = requests
+        .into_iter()
+        .map(FriendRequestResponse::from)
+        .collect();
 
     Ok(Json(json!({
         "requests": response
@@ -74,7 +92,9 @@ pub async fn get_sent_requests(
 
 pub async fn send_friend_request(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<AuthorizationHeader>,
+    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
+        AuthorizationHeader,
+    >,
     Json(req): Json<SendFriendRequest>,
 ) -> AppResult<Json<FriendRequestResponse>> {
     let from_user_id = get_current_user_id(&state, headers.token()).await?;
@@ -86,22 +106,35 @@ pub async fn send_friend_request(
 
     if from_user_id == to_user_id {
         tracing::warn!(user_id = %from_user_id, "User attempted to send friend request to self");
-        return Err(AppError::Validation("Cannot send friend request to yourself".into()));
+        return Err(AppError::Validation(
+            "Cannot send friend request to yourself".into(),
+        ));
     }
 
-    let is_friend = state.friend_service.is_friend(&from_user_id, &to_user_id).await?;
+    let is_friend = state
+        .friend_service
+        .is_friend(&from_user_id, &to_user_id)
+        .await?;
     if is_friend {
         tracing::debug!(from_user_id = %from_user_id, to_user_id = %to_user_id, "Already friends");
-        return Err(AppError::Validation("Already friends with this user".into()));
+        return Err(AppError::Validation(
+            "Already friends with this user".into(),
+        ));
     }
 
-    let has_pending = state.friend_service.has_pending_request(&from_user_id, &to_user_id).await?;
+    let has_pending = state
+        .friend_service
+        .has_pending_request(&from_user_id, &to_user_id)
+        .await?;
     if has_pending {
         tracing::debug!(from_user_id = %from_user_id, to_user_id = %to_user_id, "Pending request already exists");
-        return Err(AppError::Validation("Friend request already pending".into()));
+        return Err(AppError::Validation(
+            "Friend request already pending".into(),
+        ));
     }
 
-    let request = state.friend_service
+    let request = state
+        .friend_service
         .send_request(from_user_id, to_user_id, req.message)
         .await?;
 
@@ -112,7 +145,9 @@ pub async fn send_friend_request(
 
 pub async fn accept_friend_request(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<AuthorizationHeader>,
+    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
+        AuthorizationHeader,
+    >,
     Path(request_id): Path<String>,
 ) -> AppResult<Json<FriendshipResponse>> {
     let _user_id = get_current_user_id(&state, headers.token()).await?;
@@ -120,14 +155,19 @@ pub async fn accept_friend_request(
         .map_err(|_| AppError::Validation("Invalid request ID".into()))?;
     let friend_request_id = FriendRequestId::from(request_uuid);
 
-    let friendship = state.friend_service.accept_request(&friend_request_id).await?;
+    let friendship = state
+        .friend_service
+        .accept_request(&friend_request_id)
+        .await?;
 
     Ok(Json(FriendshipResponse::from(friendship)))
 }
 
 pub async fn reject_friend_request(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<AuthorizationHeader>,
+    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
+        AuthorizationHeader,
+    >,
     Path(request_id): Path<String>,
 ) -> AppResult<Json<SuccessResponse>> {
     let _user_id = get_current_user_id(&state, headers.token()).await?;
@@ -135,7 +175,10 @@ pub async fn reject_friend_request(
         .map_err(|_| AppError::Validation("Invalid request ID".into()))?;
     let friend_request_id = FriendRequestId::from(request_uuid);
 
-    state.friend_service.reject_request(&friend_request_id).await?;
+    state
+        .friend_service
+        .reject_request(&friend_request_id)
+        .await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -144,7 +187,8 @@ pub async fn reject_friend_request(
 }
 
 async fn get_current_user_id(state: &AppState, token: &str) -> AppResult<UserId> {
-    let claims = state.jwt_provider
+    let claims = state
+        .jwt_provider
         .validate_token(token)
         .await
         .map_err(|_| AppError::Unauthorized("Invalid token".into()))?;

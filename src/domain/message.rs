@@ -49,10 +49,11 @@ impl From<String> for MessageId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum MessageType {
+    #[default]
     Text,
     Image,
     Video,
@@ -60,12 +61,6 @@ pub enum MessageType {
     File,
     System,
     Custom,
-}
-
-impl Default for MessageType {
-    fn default() -> Self {
-        Self::Text
-    }
 }
 
 impl std::fmt::Display for MessageType {
@@ -99,21 +94,16 @@ impl std::str::FromStr for MessageType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum MessageStatus {
+    #[default]
     Sending,
     Sent,
     Delivered,
     Read,
     Failed,
-}
-
-impl Default for MessageStatus {
-    fn default() -> Self {
-        Self::Sending
-    }
 }
 
 impl std::fmt::Display for MessageStatus {
@@ -184,7 +174,12 @@ impl Message {
     }
 
     pub fn system(conversation_id: ConversationId, content: String) -> Self {
-        Self::new(conversation_id, UserId::from(Uuid::nil()), MessageType::System, content)
+        Self::new(
+            conversation_id,
+            UserId::from(Uuid::nil()),
+            MessageType::System,
+            content,
+        )
     }
 
     pub fn with_metadata(mut self, key: String, value: serde_json::Value) -> Self {
@@ -314,7 +309,10 @@ mod tests {
             .with_metadata("file_size".to_string(), serde_json::json!(1024))
             .with_metadata("file_name".to_string(), serde_json::json!("test.pdf"));
 
-        assert_eq!(message.metadata.0.get("file_size").unwrap(), &serde_json::json!(1024));
+        assert_eq!(
+            message.metadata.0.get("file_size").unwrap(),
+            &serde_json::json!(1024)
+        );
     }
 
     #[test]
@@ -333,7 +331,7 @@ mod tests {
         let device_id = super::super::DeviceId::new();
 
         let mut delivery = MessageDelivery::new(message_id, user_id, device_id);
-        
+
         assert!(delivery.delivered_at <= Utc::now());
         assert!(!delivery.is_read());
 
@@ -350,7 +348,13 @@ mod tests {
 
     #[test]
     fn test_message_status_from_str() {
-        assert_eq!("sent".parse::<MessageStatus>().unwrap(), MessageStatus::Sent);
-        assert_eq!("READ".parse::<MessageStatus>().unwrap(), MessageStatus::Read);
+        assert_eq!(
+            "sent".parse::<MessageStatus>().unwrap(),
+            MessageStatus::Sent
+        );
+        assert_eq!(
+            "READ".parse::<MessageStatus>().unwrap(),
+            MessageStatus::Read
+        );
     }
 }

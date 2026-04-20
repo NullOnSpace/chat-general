@@ -12,8 +12,12 @@ impl axum_extra::headers::Header for AuthorizationHeader {
     where
         I: Iterator<Item = &'i HeaderValue>,
     {
-        let value = values.next().ok_or_else(axum_extra::headers::Error::invalid)?;
-        let str = value.to_str().map_err(|_| axum_extra::headers::Error::invalid())?;
+        let value = values
+            .next()
+            .ok_or_else(axum_extra::headers::Error::invalid)?;
+        let str = value
+            .to_str()
+            .map_err(|_| axum_extra::headers::Error::invalid())?;
         Ok(AuthorizationHeader(str.to_owned()))
     }
 

@@ -7,12 +7,12 @@ use serial_test::serial;
 async fn test_register_success() {
     let app = TestApp::new().await;
     let client = app.client();
-    
+
     let uuid_str = uuid::Uuid::new_v4().to_string();
     let username = format!("register_test_{}", &uuid_str[..8]);
-    
+
     let response = client
-        .post(&format!("{}/api/v1/auth/register", app.base_url()))
+        .post(format!("{}/api/v1/auth/register", app.base_url()))
         .json(&json!({
             "username": username,
             "email": format!("{}@test.com", username),
@@ -34,9 +34,9 @@ async fn test_register_success() {
 async fn test_register_short_password() {
     let app = TestApp::new().await;
     let client = app.client();
-    
+
     let response = client
-        .post(&format!("{}/api/v1/auth/register", app.base_url()))
+        .post(format!("{}/api/v1/auth/register", app.base_url()))
         .json(&json!({
             "username": "short_pass_user",
             "email": "short@test.com",
@@ -46,7 +46,10 @@ async fn test_register_short_password() {
         .await
         .expect("Failed to send register request");
 
-    assert!(!response.status().is_success(), "Register with short password should fail");
+    assert!(
+        !response.status().is_success(),
+        "Register with short password should fail"
+    );
 }
 
 #[tokio::test]
@@ -54,9 +57,9 @@ async fn test_register_short_password() {
 async fn test_register_invalid_email() {
     let app = TestApp::new().await;
     let client = app.client();
-    
+
     let response = client
-        .post(&format!("{}/api/v1/auth/register", app.base_url()))
+        .post(format!("{}/api/v1/auth/register", app.base_url()))
         .json(&json!({
             "username": "invalid_email_user",
             "email": "invalid-email",
@@ -66,7 +69,10 @@ async fn test_register_invalid_email() {
         .await
         .expect("Failed to send register request");
 
-    assert!(!response.status().is_success(), "Register with invalid email should fail");
+    assert!(
+        !response.status().is_success(),
+        "Register with invalid email should fail"
+    );
 }
 
 #[tokio::test]
@@ -74,10 +80,10 @@ async fn test_register_invalid_email() {
 async fn test_register_duplicate_username() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/auth/register", app.base_url()))
+        .post(format!("{}/api/v1/auth/register", app.base_url()))
         .json(&json!({
             "username": user.username,
             "email": format!("different_{}@test.com", uuid::Uuid::new_v4()),
@@ -87,7 +93,10 @@ async fn test_register_duplicate_username() {
         .await
         .expect("Failed to send register request");
 
-    assert!(!response.status().is_success(), "Register with duplicate username should fail");
+    assert!(
+        !response.status().is_success(),
+        "Register with duplicate username should fail"
+    );
 }
 
 #[tokio::test]
@@ -95,10 +104,10 @@ async fn test_register_duplicate_username() {
 async fn test_register_duplicate_email() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/auth/register", app.base_url()))
+        .post(format!("{}/api/v1/auth/register", app.base_url()))
         .json(&json!({
             "username": format!("different_{}", uuid::Uuid::new_v4()),
             "email": user.email,
@@ -108,7 +117,10 @@ async fn test_register_duplicate_email() {
         .await
         .expect("Failed to send register request");
 
-    assert!(!response.status().is_success(), "Register with duplicate email should fail");
+    assert!(
+        !response.status().is_success(),
+        "Register with duplicate email should fail"
+    );
 }
 
 #[tokio::test]
@@ -116,10 +128,10 @@ async fn test_register_duplicate_email() {
 async fn test_login_success() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/auth/login", app.base_url()))
+        .post(format!("{}/api/v1/auth/login", app.base_url()))
         .json(&json!({
             "username": user.username,
             "password": "password123"
@@ -131,8 +143,14 @@ async fn test_login_success() {
     assert!(response.status().is_success(), "Login should succeed");
 
     let data: serde_json::Value = response.json().await.expect("Failed to parse response");
-    assert!(data["access_token"].as_str().is_some(), "Should have access token");
-    assert!(data["refresh_token"].as_str().is_some(), "Should have refresh token");
+    assert!(
+        data["access_token"].as_str().is_some(),
+        "Should have access token"
+    );
+    assert!(
+        data["refresh_token"].as_str().is_some(),
+        "Should have refresh token"
+    );
     assert_eq!(data["user"]["username"].as_str().unwrap(), user.username);
 }
 
@@ -141,10 +159,10 @@ async fn test_login_success() {
 async fn test_login_wrong_password() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/auth/login", app.base_url()))
+        .post(format!("{}/api/v1/auth/login", app.base_url()))
         .json(&json!({
             "username": user.username,
             "password": "wrong_password"
@@ -153,7 +171,10 @@ async fn test_login_wrong_password() {
         .await
         .expect("Failed to send login request");
 
-    assert!(!response.status().is_success(), "Login with wrong password should fail");
+    assert!(
+        !response.status().is_success(),
+        "Login with wrong password should fail"
+    );
 }
 
 #[tokio::test]
@@ -161,9 +182,9 @@ async fn test_login_wrong_password() {
 async fn test_login_user_not_found() {
     let app = TestApp::new().await;
     let client = app.client();
-    
+
     let response = client
-        .post(&format!("{}/api/v1/auth/login", app.base_url()))
+        .post(format!("{}/api/v1/auth/login", app.base_url()))
         .json(&json!({
             "username": "nonexistent_user",
             "password": "password123"
@@ -172,7 +193,10 @@ async fn test_login_user_not_found() {
         .await
         .expect("Failed to send login request");
 
-    assert!(!response.status().is_success(), "Login with nonexistent user should fail");
+    assert!(
+        !response.status().is_success(),
+        "Login with nonexistent user should fail"
+    );
 }
 
 #[tokio::test]
@@ -180,9 +204,9 @@ async fn test_login_user_not_found() {
 async fn test_login_empty_credentials() {
     let app = TestApp::new().await;
     let client = app.client();
-    
+
     let response = client
-        .post(&format!("{}/api/v1/auth/login", app.base_url()))
+        .post(format!("{}/api/v1/auth/login", app.base_url()))
         .json(&json!({
             "username": "",
             "password": ""
@@ -191,7 +215,10 @@ async fn test_login_empty_credentials() {
         .await
         .expect("Failed to send login request");
 
-    assert!(!response.status().is_success(), "Login with empty credentials should fail");
+    assert!(
+        !response.status().is_success(),
+        "Login with empty credentials should fail"
+    );
 }
 
 #[tokio::test]
@@ -199,10 +226,10 @@ async fn test_login_empty_credentials() {
 async fn test_refresh_token_success() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/auth/refresh", app.base_url()))
+        .post(format!("{}/api/v1/auth/refresh", app.base_url()))
         .json(&json!({
             "refresh_token": user.refresh_token
         }))
@@ -216,8 +243,14 @@ async fn test_refresh_token_success() {
     }
 
     let data: serde_json::Value = response.json().await.expect("Failed to parse response");
-    assert!(data["access_token"].as_str().is_some(), "Should have new access token");
-    assert!(data["refresh_token"].as_str().is_some(), "Should have new refresh token");
+    assert!(
+        data["access_token"].as_str().is_some(),
+        "Should have new access token"
+    );
+    assert!(
+        data["refresh_token"].as_str().is_some(),
+        "Should have new refresh token"
+    );
 }
 
 #[tokio::test]
@@ -225,9 +258,9 @@ async fn test_refresh_token_success() {
 async fn test_refresh_token_invalid() {
     let app = TestApp::new().await;
     let client = app.client();
-    
+
     let response = client
-        .post(&format!("{}/api/v1/auth/refresh", app.base_url()))
+        .post(format!("{}/api/v1/auth/refresh", app.base_url()))
         .json(&json!({
             "refresh_token": "invalid_token"
         }))
@@ -235,7 +268,10 @@ async fn test_refresh_token_invalid() {
         .await
         .expect("Failed to send refresh request");
 
-    assert!(!response.status().is_success(), "Invalid refresh token should fail");
+    assert!(
+        !response.status().is_success(),
+        "Invalid refresh token should fail"
+    );
 }
 
 #[tokio::test]
@@ -243,10 +279,10 @@ async fn test_refresh_token_invalid() {
 async fn test_refresh_token_with_access_token() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/auth/refresh", app.base_url()))
+        .post(format!("{}/api/v1/auth/refresh", app.base_url()))
         .json(&json!({
             "refresh_token": user.access_token
         }))
@@ -254,7 +290,10 @@ async fn test_refresh_token_with_access_token() {
         .await
         .expect("Failed to send refresh request");
 
-    assert!(!response.status().is_success(), "Using access token as refresh token should fail");
+    assert!(
+        !response.status().is_success(),
+        "Using access token as refresh token should fail"
+    );
 }
 
 #[tokio::test]
@@ -262,16 +301,19 @@ async fn test_refresh_token_with_access_token() {
 async fn test_get_current_user_authenticated() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .get(&format!("{}/api/v1/auth/me", app.base_url()))
+        .get(format!("{}/api/v1/auth/me", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
         .expect("Failed to get current user");
 
-    assert!(response.status().is_success(), "Get current user should succeed");
+    assert!(
+        response.status().is_success(),
+        "Get current user should succeed"
+    );
 
     let data: serde_json::Value = response.json().await.expect("Failed to parse response");
     assert_eq!(data["username"].as_str().unwrap(), user.username);
@@ -282,14 +324,17 @@ async fn test_get_current_user_authenticated() {
 async fn test_get_current_user_unauthenticated() {
     let app = TestApp::new().await;
     let client = app.client();
-    
+
     let response = client
-        .get(&format!("{}/api/v1/auth/me", app.base_url()))
+        .get(format!("{}/api/v1/auth/me", app.base_url()))
         .send()
         .await
         .expect("Failed to get current user");
 
-    assert!(!response.status().is_success(), "Get current user without auth should fail");
+    assert!(
+        !response.status().is_success(),
+        "Get current user without auth should fail"
+    );
 }
 
 #[tokio::test]
@@ -297,15 +342,18 @@ async fn test_get_current_user_unauthenticated() {
 async fn test_get_current_user_invalid_token() {
     let app = TestApp::new().await;
     let client = app.client();
-    
+
     let response = client
-        .get(&format!("{}/api/v1/auth/me", app.base_url()))
+        .get(format!("{}/api/v1/auth/me", app.base_url()))
         .header("Authorization", "Bearer invalid_token")
         .send()
         .await
         .expect("Failed to get current user");
 
-    assert!(!response.status().is_success(), "Get current user with invalid token should fail");
+    assert!(
+        !response.status().is_success(),
+        "Get current user with invalid token should fail"
+    );
 }
 
 #[tokio::test]
@@ -313,10 +361,10 @@ async fn test_get_current_user_invalid_token() {
 async fn test_logout() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .post(&format!("{}/api/v1/auth/logout", app.base_url()))
+        .post(format!("{}/api/v1/auth/logout", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
@@ -330,19 +378,29 @@ async fn test_logout() {
 async fn test_search_users() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .get(&format!("{}/api/v1/users/search?q={}", app.base_url(), user.username))
+        .get(format!(
+            "{}/api/v1/users/search?q={}",
+            app.base_url(),
+            user.username
+        ))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
         .expect("Failed to search users");
 
-    assert!(response.status().is_success(), "Search users should succeed");
+    assert!(
+        response.status().is_success(),
+        "Search users should succeed"
+    );
 
     let data: serde_json::Value = response.json().await.expect("Failed to parse response");
-    assert!(data["users"].as_array().is_some(), "Should have users array");
+    assert!(
+        data["users"].as_array().is_some(),
+        "Should have users array"
+    );
 }
 
 #[tokio::test]
@@ -350,14 +408,17 @@ async fn test_search_users() {
 async fn test_search_users_empty_query() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let client = app.client();
     let response = client
-        .get(&format!("{}/api/v1/users/search?q=", app.base_url()))
+        .get(format!("{}/api/v1/users/search?q=", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .send()
         .await
         .expect("Failed to search users");
 
-    assert!(response.status().is_success(), "Search users with empty query should succeed");
+    assert!(
+        response.status().is_success(),
+        "Search users with empty query should succeed"
+    );
 }

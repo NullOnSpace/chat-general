@@ -3,7 +3,7 @@ use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
     util::SubscriberInitExt,
-    Layer, EnvFilter,
+    EnvFilter, Layer,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -82,8 +82,7 @@ impl LoggingSettings {
             level: std::env::var("CHAT_LOG_LEVEL")
                 .or_else(|_| std::env::var("RUST_LOG"))
                 .unwrap_or_else(|_| default_log_level()),
-            format: std::env::var("CHAT_LOG_FORMAT")
-                .unwrap_or_else(|_| default_log_format()),
+            format: std::env::var("CHAT_LOG_FORMAT").unwrap_or_else(|_| default_log_format()),
             json: std::env::var("CHAT_LOG_JSON")
                 .map(|v| v == "true" || v == "1")
                 .unwrap_or(false),
@@ -108,8 +107,8 @@ impl LoggingSettings {
     }
 
     pub fn init(&self) {
-        let env_filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new(&self.level));
+        let env_filter =
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&self.level));
 
         let span_events = match self.span_events.as_str() {
             "none" => FmtSpan::NONE,

@@ -104,20 +104,15 @@ impl User {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum UserStatus {
     Online,
     Away,
     Busy,
+    #[default]
     Offline,
-}
-
-impl Default for UserStatus {
-    fn default() -> Self {
-        Self::Offline
-    }
 }
 
 impl std::fmt::Display for UserStatus {
@@ -197,6 +192,9 @@ mod tests {
     #[test]
     fn test_user_status_from_str() {
         assert_eq!("online".parse::<UserStatus>().unwrap(), UserStatus::Online);
-        assert_eq!("OFFLINE".parse::<UserStatus>().unwrap(), UserStatus::Offline);
+        assert_eq!(
+            "OFFLINE".parse::<UserStatus>().unwrap(),
+            UserStatus::Offline
+        );
     }
 }

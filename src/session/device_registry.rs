@@ -1,7 +1,7 @@
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 
 use crate::domain::{DeviceId, DeviceType, UserId};
 use crate::error::AppResult;
@@ -147,19 +147,22 @@ impl DeviceRegistry {
     }
 
     pub async fn is_user_online(&self, user_id: &UserId) -> bool {
-        self.get_online_devices(user_id).await.iter().any(|d| d.is_online)
+        self.get_online_devices(user_id)
+            .await
+            .iter()
+            .any(|d| d.is_online)
     }
 
     pub async fn get_online_users(&self) -> Vec<UserId> {
         let devices = self.devices.read().await;
         let mut online_users = std::collections::HashSet::new();
-        
+
         for device in devices.values() {
             if device.is_online {
                 online_users.insert(device.user_id);
             }
         }
-        
+
         online_users.into_iter().collect()
     }
 }
@@ -173,16 +176,16 @@ mod tests {
         let registry = DeviceRegistry::new();
         let user_id = UserId::new();
         let device_id = DeviceId::new();
-        
+
         let device = DeviceInfo::new(
             device_id,
             user_id,
             DeviceType::Web,
             "Test Device".to_string(),
         );
-        
+
         registry.register(device).await.unwrap();
-        
+
         let retrieved = registry.get_device(&device_id).await;
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().device_name, "Test Device");
@@ -192,7 +195,7 @@ mod tests {
     async fn test_get_user_devices() {
         let registry = DeviceRegistry::new();
         let user_id = UserId::new();
-        
+
         let device1 = DeviceInfo::new(
             DeviceId::new(),
             user_id,
@@ -205,10 +208,10 @@ mod tests {
             DeviceType::Mobile,
             "Mobile Device".to_string(),
         );
-        
+
         registry.register(device1).await.unwrap();
         registry.register(device2).await.unwrap();
-        
+
         let devices = registry.get_user_devices(&user_id).await;
         assert_eq!(devices.len(), 2);
     }
@@ -218,17 +221,17 @@ mod tests {
         let registry = DeviceRegistry::new();
         let user_id = UserId::new();
         let device_id = DeviceId::new();
-        
+
         let device = DeviceInfo::new(
             device_id,
             user_id,
             DeviceType::Web,
             "Test Device".to_string(),
         );
-        
+
         registry.register(device).await.unwrap();
         registry.unregister(&device_id).await.unwrap();
-        
+
         let retrieved = registry.get_device(&device_id).await;
         assert!(retrieved.is_none());
     }
@@ -238,7 +241,7 @@ mod tests {
         let registry = DeviceRegistry::new();
         let user_id = UserId::new();
         let device_id = DeviceId::new();
-        
+
         let mut device = DeviceInfo::new(
             device_id,
             user_id,
@@ -246,10 +249,10 @@ mod tests {
             "Test Device".to_string(),
         );
         device.set_online(false);
-        
+
         registry.register(device).await.unwrap();
         registry.set_device_online(&device_id, true).await.unwrap();
-        
+
         let retrieved = registry.get_device(&device_id).await.unwrap();
         assert!(retrieved.is_online);
     }
@@ -258,16 +261,16 @@ mod tests {
     async fn test_is_user_online() {
         let registry = DeviceRegistry::new();
         let user_id = UserId::new();
-        
+
         assert!(!registry.is_user_online(&user_id).await);
-        
+
         let device = DeviceInfo::new(
             DeviceId::new(),
             user_id,
             DeviceType::Web,
             "Test Device".to_string(),
         );
-        
+
         registry.register(device).await.unwrap();
         assert!(registry.is_user_online(&user_id).await);
     }

@@ -2,9 +2,9 @@ use super::{TestApp, TestUser};
 
 pub async fn make_friends(app: &TestApp, user1: &TestUser, user2: &TestUser) {
     let client = app.client();
-    
+
     client
-        .post(&format!("{}/api/v1/friends/requests", app.base_url()))
+        .post(format!("{}/api/v1/friends/requests", app.base_url()))
         .header("Authorization", format!("Bearer {}", user1.access_token))
         .json(&serde_json::json!({
             "to_user_id": user2.id,
@@ -15,7 +15,7 @@ pub async fn make_friends(app: &TestApp, user1: &TestUser, user2: &TestUser) {
         .expect("Failed to send friend request");
 
     let requests_response = client
-        .get(&format!("{}/api/v1/friends/requests", app.base_url()))
+        .get(format!("{}/api/v1/friends/requests", app.base_url()))
         .header("Authorization", format!("Bearer {}", user2.access_token))
         .send()
         .await
@@ -29,9 +29,13 @@ pub async fn make_friends(app: &TestApp, user1: &TestUser, user2: &TestUser) {
     if let Some(requests_arr) = requests["requests"].as_array() {
         if let Some(request) = requests_arr.first() {
             let request_id = request["id"].as_str().unwrap_or_default();
-            
+
             client
-                .put(&format!("{}/api/v1/friends/requests/{}/accept", app.base_url(), request_id))
+                .put(format!(
+                    "{}/api/v1/friends/requests/{}/accept",
+                    app.base_url(),
+                    request_id
+                ))
                 .header("Authorization", format!("Bearer {}", user2.access_token))
                 .send()
                 .await
@@ -42,9 +46,9 @@ pub async fn make_friends(app: &TestApp, user1: &TestUser, user2: &TestUser) {
 
 pub async fn create_test_conversation(app: &TestApp, user: &TestUser, friend_id: &str) -> String {
     let client = app.client();
-    
+
     let response = client
-        .post(&format!("{}/api/v1/conversations", app.base_url()))
+        .post(format!("{}/api/v1/conversations", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .json(&serde_json::json!({
             "participant_ids": [friend_id]
@@ -61,11 +65,16 @@ pub async fn create_test_conversation(app: &TestApp, user: &TestUser, friend_id:
     data["id"].as_str().unwrap_or_default().to_string()
 }
 
-pub async fn send_test_message(app: &TestApp, user: &TestUser, conv_id: &str, content: &str) -> String {
+pub async fn send_test_message(
+    app: &TestApp,
+    user: &TestUser,
+    conv_id: &str,
+    content: &str,
+) -> String {
     let client = app.client();
-    
+
     let response = client
-        .post(&format!("{}/api/v1/messages", app.base_url()))
+        .post(format!("{}/api/v1/messages", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .json(&serde_json::json!({
             "conversation_id": conv_id,
@@ -85,9 +94,9 @@ pub async fn send_test_message(app: &TestApp, user: &TestUser, conv_id: &str, co
 
 pub async fn create_test_group(app: &TestApp, user: &TestUser, name: &str) -> String {
     let client = app.client();
-    
+
     let response = client
-        .post(&format!("{}/api/v1/groups", app.base_url()))
+        .post(format!("{}/api/v1/groups", app.base_url()))
         .header("Authorization", format!("Bearer {}", user.access_token))
         .json(&serde_json::json!({
             "name": name

@@ -1,7 +1,9 @@
-pub mod store;
 pub mod handler;
 pub mod router;
+pub mod store;
 
-pub use store::{MessageStore, InMemoryMessageStore};
-pub use handler::{MessageHandler, HandlerChain, HandlerAction, LoggingHandler, ContentFilterHandler};
-pub use router::{MessageRouter, HistoryService};
+pub use handler::{
+    ContentFilterHandler, HandlerAction, HandlerChain, LoggingHandler, MessageHandler,
+};
+pub use router::{HistoryService, MessageRouter};
+pub use store::{InMemoryMessageStore, MessageStore};

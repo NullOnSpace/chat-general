@@ -10,7 +10,7 @@ async fn test_websocket_connect_success() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
     let device_id = user.device_id();
-    
+
     let ws_url = format!(
         "{}/ws?token={}&device_id={}",
         app.ws_url(),
@@ -24,11 +24,13 @@ async fn test_websocket_connect_success() {
     let (ws_stream, _) = result.unwrap();
     let (mut _sender, mut receiver) = ws_stream.split();
 
-    if let Some(msg_result) = receiver.next().await {
-        if let Ok(WsMessage::Text(text)) = msg_result {
-            let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
-            assert_eq!(data["type"].as_str().unwrap(), "connected", "Should receive connected message");
-        }
+    if let Some(Ok(WsMessage::Text(text))) = receiver.next().await {
+        let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
+        assert_eq!(
+            data["type"].as_str().unwrap(),
+            "connected",
+            "Should receive connected message"
+        );
     }
 }
 
@@ -37,7 +39,7 @@ async fn test_websocket_connect_success() {
 async fn test_websocket_connect_invalid_token() {
     let app = TestApp::new().await;
     let device_id = format!("device-{}", uuid::Uuid::new_v4());
-    
+
     let ws_url = format!(
         "{}/ws?token={}&device_id={}",
         app.ws_url(),
@@ -46,16 +48,18 @@ async fn test_websocket_connect_invalid_token() {
     );
 
     let result = connect_async(&ws_url).await;
-    
+
     if result.is_ok() {
         let (ws_stream, _) = result.unwrap();
         let (_sender, mut receiver) = ws_stream.split();
-        
-        if let Some(msg_result) = receiver.next().await {
-            if let Ok(WsMessage::Text(text)) = msg_result {
-                let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
-                assert_eq!(data["type"].as_str().unwrap(), "error", "Should receive error message");
-            }
+
+        if let Some(Ok(WsMessage::Text(text))) = receiver.next().await {
+            let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
+            assert_eq!(
+                data["type"].as_str().unwrap(),
+                "error",
+                "Should receive error message"
+            );
         }
     }
 }
@@ -65,7 +69,7 @@ async fn test_websocket_connect_invalid_token() {
 async fn test_websocket_connect_no_token() {
     let app = TestApp::new().await;
     let device_id = uuid::Uuid::new_v4().to_string();
-    
+
     let ws_url = format!(
         "{}/ws?device_id={}",
         app.ws_url(),
@@ -73,7 +77,10 @@ async fn test_websocket_connect_no_token() {
     );
 
     let result = connect_async(&ws_url).await;
-    assert!(result.is_err(), "WebSocket connection without token should fail");
+    assert!(
+        result.is_err(),
+        "WebSocket connection without token should fail"
+    );
 }
 
 #[tokio::test]
@@ -81,7 +88,7 @@ async fn test_websocket_connect_no_token() {
 async fn test_websocket_connect_invalid_device_id() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
-    
+
     let ws_url = format!(
         "{}/ws?token={}&device_id={}",
         app.ws_url(),
@@ -90,16 +97,18 @@ async fn test_websocket_connect_invalid_device_id() {
     );
 
     let result = connect_async(&ws_url).await;
-    
+
     if result.is_ok() {
         let (ws_stream, _) = result.unwrap();
         let (_sender, mut receiver) = ws_stream.split();
-        
-        if let Some(msg_result) = receiver.next().await {
-            if let Ok(WsMessage::Text(text)) = msg_result {
-                let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
-                assert_eq!(data["type"].as_str().unwrap(), "error", "Should receive error message for invalid device_id");
-            }
+
+        if let Some(Ok(WsMessage::Text(text))) = receiver.next().await {
+            let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
+            assert_eq!(
+                data["type"].as_str().unwrap(),
+                "error",
+                "Should receive error message for invalid device_id"
+            );
         }
     }
 }
@@ -110,7 +119,7 @@ async fn test_websocket_send_message() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
     let device_id = user.device_id();
-    
+
     let ws_url = format!(
         "{}/ws?token={}&device_id={}",
         app.ws_url(),
@@ -124,12 +133,10 @@ async fn test_websocket_send_message() {
     let (ws_stream, _) = result.unwrap();
     let (mut sender, mut receiver) = ws_stream.split();
 
-    while let Some(msg_result) = receiver.next().await {
-        if let Ok(WsMessage::Text(text)) = msg_result {
-            let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
-            if data["type"].as_str() == Some("connected") {
-                break;
-            }
+    while let Some(Ok(WsMessage::Text(text))) = receiver.next().await {
+        let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
+        if data["type"].as_str() == Some("connected") {
+            break;
         }
     }
 
@@ -142,7 +149,9 @@ async fn test_websocket_send_message() {
         }
     });
 
-    let send_result = sender.send(WsMessage::Text(message_payload.to_string())).await;
+    let send_result = sender
+        .send(WsMessage::Text(message_payload.to_string()))
+        .await;
     assert!(send_result.is_ok(), "Sending message should succeed");
 }
 
@@ -152,7 +161,7 @@ async fn test_websocket_send_invalid_json() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
     let device_id = user.device_id();
-    
+
     let ws_url = format!(
         "{}/ws?token={}&device_id={}",
         app.ws_url(),
@@ -166,23 +175,25 @@ async fn test_websocket_send_invalid_json() {
     let (ws_stream, _) = result.unwrap();
     let (mut sender, mut receiver) = ws_stream.split();
 
-    while let Some(msg_result) = receiver.next().await {
-        if let Ok(WsMessage::Text(text)) = msg_result {
-            let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
-            if data["type"].as_str() == Some("connected") {
-                break;
-            }
+    while let Some(Ok(WsMessage::Text(text))) = receiver.next().await {
+        let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
+        if data["type"].as_str() == Some("connected") {
+            break;
         }
     }
 
-    let send_result = sender.send(WsMessage::Text("invalid json {{{".to_string())).await;
+    let send_result = sender
+        .send(WsMessage::Text("invalid json {{{".to_string()))
+        .await;
     assert!(send_result.is_ok(), "Sending invalid JSON should not crash");
 
-    if let Some(msg_result) = receiver.next().await {
-        if let Ok(WsMessage::Text(text)) = msg_result {
-            let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
-            assert_eq!(data["type"].as_str().unwrap(), "error", "Should receive error for invalid JSON");
-        }
+    if let Some(Ok(WsMessage::Text(text))) = receiver.next().await {
+        let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
+        assert_eq!(
+            data["type"].as_str().unwrap(),
+            "error",
+            "Should receive error for invalid JSON"
+        );
     }
 }
 
@@ -192,7 +203,7 @@ async fn test_websocket_ping_pong() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
     let device_id = user.device_id();
-    
+
     let ws_url = format!(
         "{}/ws?token={}&device_id={}",
         app.ws_url(),
@@ -206,12 +217,10 @@ async fn test_websocket_ping_pong() {
     let (ws_stream, _) = result.unwrap();
     let (mut sender, mut receiver) = ws_stream.split();
 
-    while let Some(msg_result) = receiver.next().await {
-        if let Ok(WsMessage::Text(text)) = msg_result {
-            let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
-            if data["type"].as_str() == Some("connected") {
-                break;
-            }
+    while let Some(Ok(WsMessage::Text(text))) = receiver.next().await {
+        let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
+        if data["type"].as_str() == Some("connected") {
+            break;
         }
     }
 
@@ -221,11 +230,9 @@ async fn test_websocket_ping_pong() {
 
     let mut received_pong = false;
     for _ in 0..10 {
-        if let Some(msg_result) = receiver.next().await {
-            if let Ok(WsMessage::Pong(_)) = msg_result {
-                received_pong = true;
-                break;
-            }
+        if let Some(Ok(WsMessage::Pong(_))) = receiver.next().await {
+            received_pong = true;
+            break;
         }
     }
     assert!(received_pong, "Should receive pong response");
@@ -237,7 +244,7 @@ async fn test_websocket_close_connection() {
     let app = TestApp::new().await;
     let user = TestUser::create_unique(&app).await;
     let device_id = user.device_id();
-    
+
     let ws_url = format!(
         "{}/ws?token={}&device_id={}",
         app.ws_url(),
@@ -251,12 +258,10 @@ async fn test_websocket_close_connection() {
     let (ws_stream, _) = result.unwrap();
     let (mut sender, mut receiver) = ws_stream.split();
 
-    while let Some(msg_result) = receiver.next().await {
-        if let Ok(WsMessage::Text(text)) = msg_result {
-            let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
-            if data["type"].as_str() == Some("connected") {
-                break;
-            }
+    while let Some(Ok(WsMessage::Text(text))) = receiver.next().await {
+        let data: serde_json::Value = serde_json::from_str(&text).expect("Should parse JSON");
+        if data["type"].as_str() == Some("connected") {
+            break;
         }
     }
 

@@ -1,5 +1,5 @@
-pub mod types;
 pub mod bus;
+pub mod types;
 
-pub use types::Event;
 pub use bus::{EventBus, EventSubscriber, LoggingSubscriber};
+pub use types::Event;

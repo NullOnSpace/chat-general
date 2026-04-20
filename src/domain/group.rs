@@ -52,19 +52,14 @@ impl From<String> for GroupId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum GroupRole {
     Owner,
     Admin,
+    #[default]
     Member,
-}
-
-impl Default for GroupRole {
-    fn default() -> Self {
-        Self::Member
-    }
 }
 
 impl std::fmt::Display for GroupRole {
@@ -263,17 +258,17 @@ impl Group {
         if !self.is_member(new_owner_id) {
             return Err(GroupError::NotMember);
         }
-        
+
         let old_owner_id = self.owner_id;
         self.owner_id = *new_owner_id;
-        
+
         if let Some(old_owner) = self.get_member_mut(&old_owner_id) {
             old_owner.role = GroupRole::Admin;
         }
         if let Some(new_owner) = self.get_member_mut(new_owner_id) {
             new_owner.role = GroupRole::Owner;
         }
-        
+
         self.updated_at = Utc::now();
         Ok(())
     }
@@ -348,7 +343,10 @@ mod tests {
         let mut group = Group::new("Test".to_string(), owner);
 
         assert!(group.add_member(member).is_ok());
-        assert!(matches!(group.add_member(member), Err(GroupError::AlreadyMember)));
+        assert!(matches!(
+            group.add_member(member),
+            Err(GroupError::AlreadyMember)
+        ));
     }
 
     #[test]
@@ -370,7 +368,10 @@ mod tests {
         let owner = UserId::new();
         let mut group = Group::new("Test".to_string(), owner);
 
-        assert!(matches!(group.remove_member(&owner), Err(GroupError::CannotRemoveOwner)));
+        assert!(matches!(
+            group.remove_member(&owner),
+            Err(GroupError::CannotRemoveOwner)
+        ));
     }
 
     #[test]
@@ -390,7 +391,7 @@ mod tests {
     #[test]
     fn test_group_member_roles() {
         let user = UserId::new();
-        
+
         let owner = GroupMember::owner(user);
         assert!(owner.is_owner());
         assert!(owner.is_admin());
@@ -414,7 +415,10 @@ mod tests {
         assert!(group.is_full());
 
         let member2 = UserId::new();
-        assert!(matches!(group.add_member(member2), Err(GroupError::GroupFull)));
+        assert!(matches!(
+            group.add_member(member2),
+            Err(GroupError::GroupFull)
+        ));
     }
 
     #[test]

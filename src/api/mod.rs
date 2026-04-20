@@ -1,26 +1,26 @@
+pub mod auth_extractor;
 pub mod dto;
 pub mod handlers;
 pub mod websocket;
-pub mod auth_extractor;
 
+pub use auth_extractor::AuthorizationHeader;
 pub use dto::*;
 pub use handlers::*;
 pub use websocket::*;
-pub use auth_extractor::AuthorizationHeader;
 
+use crate::auth::JwtAuthProvider;
+use crate::event::EventBus;
+use crate::friend::FriendService;
+use crate::group::GroupService;
+use crate::infra::{create_user_store, InMemoryFriendRepository, UserStorage};
+use crate::message::InMemoryMessageStore;
+use crate::session::{DeviceRegistry, SessionManager};
 use axum::{
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
     Router,
 };
 use std::sync::Arc;
 use tower_http::services::ServeDir;
-use crate::session::{DeviceRegistry, SessionManager};
-use crate::message::InMemoryMessageStore;
-use crate::friend::FriendService;
-use crate::group::GroupService;
-use crate::infra::{InMemoryFriendRepository, UserStorage, create_user_store};
-use crate::event::EventBus;
-use crate::auth::JwtAuthProvider;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -44,14 +44,14 @@ impl AppState {
         let event_bus = EventBus::new();
         let friend_repo = InMemoryFriendRepository::new();
         let friend_service = Arc::new(crate::friend::FriendManager::new(friend_repo, event_bus));
-        
+
         let group_service = Arc::new(crate::group::GroupManager::new());
-        
+
         let jwt_settings = crate::config::Settings::default().jwt;
         let jwt_provider = Arc::new(JwtAuthProvider::new(&jwt_settings));
-        
+
         let user_store = create_user_store();
-        
+
         Self {
             device_registry: DeviceRegistry::new(),
             session_manager: SessionManager::new(),
@@ -75,23 +75,53 @@ pub fn create_routes() -> Router<AppState> {
         .route("/users/me/devices", get(handlers::auth::get_user_devices))
         .route("/users/search", get(handlers::auth::search_users))
         .route("/conversations", get(handlers::message::get_conversations))
-        .route("/conversations", post(handlers::message::create_conversation))
-        .route("/conversations/:id", get(handlers::message::get_conversation))
-        .route("/conversations/:id/messages", get(handlers::message::get_messages))
+        .route(
+            "/conversations",
+            post(handlers::message::create_conversation),
+        )
+        .route(
+            "/conversations/:id",
+            get(handlers::message::get_conversation),
+        )
+        .route(
+            "/conversations/:id/messages",
+            get(handlers::message::get_messages),
+        )
         .route("/messages", post(handlers::message::send_message))
         .route("/groups", get(handlers::group::get_user_groups))
         .route("/groups", post(handlers::group::create_group))
         .route("/groups/:id", get(handlers::group::get_group))
-        .route("/groups/:id/members", get(handlers::group::get_group_members))
+        .route(
+            "/groups/:id/members",
+            get(handlers::group::get_group_members),
+        )
         .route("/groups/:id/members", put(handlers::group::add_member))
-        .route("/groups/:id/members/:uid", delete(handlers::group::remove_member))
+        .route(
+            "/groups/:id/members/:uid",
+            delete(handlers::group::remove_member),
+        )
         .route("/friends", get(handlers::friend::get_friends))
         .route("/friends/:uid", delete(handlers::friend::delete_friend))
-        .route("/friends/requests", get(handlers::friend::get_pending_requests))
-        .route("/friends/requests", post(handlers::friend::send_friend_request))
-        .route("/friends/requests/sent", get(handlers::friend::get_sent_requests))
-        .route("/friends/requests/:id/accept", put(handlers::friend::accept_friend_request))
-        .route("/friends/requests/:id/reject", delete(handlers::friend::reject_friend_request));
+        .route(
+            "/friends/requests",
+            get(handlers::friend::get_pending_requests),
+        )
+        .route(
+            "/friends/requests",
+            post(handlers::friend::send_friend_request),
+        )
+        .route(
+            "/friends/requests/sent",
+            get(handlers::friend::get_sent_requests),
+        )
+        .route(
+            "/friends/requests/:id/accept",
+            put(handlers::friend::accept_friend_request),
+        )
+        .route(
+            "/friends/requests/:id/reject",
+            delete(handlers::friend::reject_friend_request),
+        );
 
     Router::new()
         .route("/ws", get(websocket::ws_handler))

@@ -1,13 +1,15 @@
-pub mod user;
-pub mod device;
-pub mod message;
 pub mod conversation;
-pub mod group;
+pub mod device;
 pub mod friendship;
+pub mod group;
+pub mod message;
+pub mod user;
 
-pub use user::{User, UserId, UserStatus};
-pub use device::{Device, DeviceId, DeviceType};
-pub use message::{Message, MessageId, MessageDelivery, MessageType, MessageStatus};
 pub use conversation::{Conversation, ConversationId, ConversationType};
-pub use group::{Group, GroupId, GroupMember, GroupRole, GroupError};
-pub use friendship::{FriendRequest, FriendRequestId, Friendship, FriendshipId, FriendshipStatus, FriendError};
+pub use device::{Device, DeviceId, DeviceType};
+pub use friendship::{
+    FriendError, FriendRequest, FriendRequestId, Friendship, FriendshipId, FriendshipStatus,
+};
+pub use group::{Group, GroupError, GroupId, GroupMember, GroupRole};
+pub use message::{Message, MessageDelivery, MessageId, MessageStatus, MessageType};
+pub use user::{User, UserId, UserStatus};

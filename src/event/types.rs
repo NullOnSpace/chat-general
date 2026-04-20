@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
-use crate::domain::{FriendRequestId, FriendRequest, Friendship, GroupId, Message, UserId};
+use crate::domain::{FriendRequest, FriendRequestId, Friendship, GroupId, Message, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]

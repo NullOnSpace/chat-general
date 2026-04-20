@@ -75,8 +75,7 @@ impl AuthProvider for ApiKeyAuthProvider {
     }
 
     async fn validate_token(&self, token: &str) -> AppResult<Self::Claims> {
-        let api_key = self.get_key(token).await
-            .ok_or(AuthError::InvalidToken)?;
+        let api_key = self.get_key(token).await.ok_or(AuthError::InvalidToken)?;
 
         Ok(AuthUser {
             user_id: api_key.user_id,
@@ -88,7 +87,7 @@ impl AuthProvider for ApiKeyAuthProvider {
     async fn generate_tokens(&self, user_id: &UserId) -> AppResult<TokenPair> {
         let api_key = ApiKey::new(*user_id, "generated".to_string(), vec!["*".to_string()]);
         let key = api_key.key.clone();
-        
+
         self.register_key(api_key).await;
 
         Ok(TokenPair {
@@ -115,8 +114,12 @@ mod tests {
     #[test]
     fn test_api_key_creation() {
         let user_id = UserId::new();
-        let api_key = ApiKey::new(user_id, "test-bot".to_string(), vec!["read".to_string(), "write".to_string()]);
-        
+        let api_key = ApiKey::new(
+            user_id,
+            "test-bot".to_string(),
+            vec!["read".to_string(), "write".to_string()],
+        );
+
         assert!(api_key.key.starts_with("sk_"));
         assert_eq!(api_key.name, "test-bot");
         assert!(api_key.has_scope("read"));
@@ -128,7 +131,7 @@ mod tests {
     fn test_api_key_wildcard_scope() {
         let user_id = UserId::new();
         let api_key = ApiKey::new(user_id, "admin-bot".to_string(), vec!["*".to_string()]);
-        
+
         assert!(api_key.has_scope("read"));
         assert!(api_key.has_scope("write"));
         assert!(api_key.has_scope("admin"));
@@ -140,9 +143,9 @@ mod tests {
         let user_id = UserId::new();
         let api_key = ApiKey::new(user_id, "test-bot".to_string(), vec!["read".to_string()]);
         let key = api_key.key.clone();
-        
+
         provider.register_key(api_key).await;
-        
+
         let auth_user = provider.validate_token(&key).await.unwrap();
         assert_eq!(auth_user.username, "test-bot");
     }
@@ -153,10 +156,10 @@ mod tests {
         let user_id = UserId::new();
         let api_key = ApiKey::new(user_id, "test-bot".to_string(), vec![]);
         let key = api_key.key.clone();
-        
+
         provider.register_key(api_key).await;
         provider.revoke_key(&key).await.unwrap();
-        
+
         let result = provider.validate_token(&key).await;
         assert!(result.is_err());
     }

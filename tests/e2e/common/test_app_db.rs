@@ -1,15 +1,15 @@
-use std::sync::atomic::{AtomicU16, Ordering};
-use std::time::Duration;
+use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use sqlx::postgres::{PgPool, PgPoolOptions};
+use std::sync::atomic::{AtomicU16, Ordering};
+use std::time::Duration;
 use tokio::task::JoinHandle;
-use async_trait::async_trait;
 
-use chat_general::api::{AppState, create_routes};
+use chat_general::api::{create_routes, AppState};
 use chat_general::config::Settings;
-use chat_general::infra::{run_migrations, UserStorage};
 use chat_general::domain::User;
 use chat_general::error::{AppError, AppResult};
+use chat_general::infra::{run_migrations, UserStorage};
 
 static NEXT_PORT: Lazy<AtomicU16> = Lazy::new(|| AtomicU16::new(20000));
 
@@ -23,21 +23,25 @@ impl TestAppWithDb {
     pub async fn new() -> Self {
         let port = NEXT_PORT.fetch_add(1, Ordering::SeqCst);
         let address = format!("127.0.0.1:{}", port);
-        
+
         let pool = create_test_pool().await;
-        run_migrations(&pool).await.expect("Failed to run migrations");
-        
+        run_migrations(&pool)
+            .await
+            .expect("Failed to run migrations");
+
         let state = create_app_state(pool.clone());
         let router = create_routes().with_state(state);
-        
+
         let addr: std::net::SocketAddr = address.parse().expect("Invalid address");
         let server_handle = tokio::spawn(async move {
-            let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind");
+            let listener = tokio::net::TcpListener::bind(addr)
+                .await
+                .expect("Failed to bind");
             axum::serve(listener, router).await.expect("Server error");
         });
-        
+
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         Self {
             address,
             server_handle: Some(server_handle),
@@ -69,12 +73,9 @@ impl TestAppWithDb {
             "DELETE FROM devices",
             "DELETE FROM users",
         ];
-        
+
         for query in queries {
-            sqlx::query(query)
-                .execute(&self.pool)
-                .await
-                .ok();
+            sqlx::query(query).execute(&self.pool).await.ok();
         }
     }
 }
@@ -89,10 +90,10 @@ impl Drop for TestAppWithDb {
 
 async fn create_test_pool() -> PgPool {
     dotenvy::dotenv().ok();
-    
-    let database_url = std::env::var("TEST_DATABASE_URL")
-        .expect("TEST_DATABASE_URL must be set in .env file");
-    
+
+    let database_url =
+        std::env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be set in .env file");
+
     PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
@@ -101,26 +102,26 @@ async fn create_test_pool() -> PgPool {
 }
 
 fn create_app_state(pool: PgPool) -> AppState {
-    use std::sync::Arc;
-    use chat_general::session::{DeviceRegistry, SessionManager};
-    use chat_general::message::InMemoryMessageStore;
+    use chat_general::auth::JwtAuthProvider;
+    use chat_general::event::EventBus;
     use chat_general::friend::FriendManager;
     use chat_general::group::GroupManager;
     use chat_general::infra::PostgresFriendRepository;
-    use chat_general::auth::JwtAuthProvider;
-    use chat_general::event::EventBus;
-    
+    use chat_general::message::InMemoryMessageStore;
+    use chat_general::session::{DeviceRegistry, SessionManager};
+    use std::sync::Arc;
+
     let event_bus = EventBus::new();
     let friend_repo = PostgresFriendRepository::new(pool.clone());
     let friend_service = Arc::new(FriendManager::new(friend_repo, event_bus));
-    
+
     let group_service = Arc::new(GroupManager::new());
-    
+
     let jwt_settings = Settings::default().jwt;
     let jwt_provider = Arc::new(JwtAuthProvider::new(&jwt_settings));
-    
+
     let user_store = Arc::new(DbUserStore::new(pool));
-    
+
     AppState {
         device_registry: DeviceRegistry::new(),
         session_manager: SessionManager::new(),
@@ -169,7 +170,7 @@ impl UserStorage for DbUserStore {
                 AppError::Internal(e.to_string())
             }
         })?;
-        
+
         Ok(user)
     }
 

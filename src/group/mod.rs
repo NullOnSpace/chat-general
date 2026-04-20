@@ -1,3 +1,3 @@
 pub mod manager;
 
-pub use manager::{GroupService, GroupManager};
+pub use manager::{GroupManager, GroupService};

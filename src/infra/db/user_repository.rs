@@ -51,34 +51,28 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn find_by_id(&self, id: &UserId) -> AppResult<Option<User>> {
-        let record = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .fetch_optional(&self.pool)
-        .await?;
+        let record = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+            .bind(id.as_uuid())
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(record)
     }
 
     async fn find_by_username(&self, username: &str) -> AppResult<Option<User>> {
-        let record = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE username = $1",
-        )
-        .bind(username)
-        .fetch_optional(&self.pool)
-        .await?;
+        let record = sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
+            .bind(username)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(record)
     }
 
     async fn find_by_email(&self, email: &str) -> AppResult<Option<User>> {
-        let record = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE email = $1",
-        )
-        .bind(email)
-        .fetch_optional(&self.pool)
-        .await?;
+        let record = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+            .bind(email)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(record)
     }
@@ -105,13 +99,11 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn update_status(&self, id: &UserId, status: UserStatus) -> AppResult<()> {
-        sqlx::query(
-            "UPDATE users SET status = $2 WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .bind(status.to_string())
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE users SET status = $2 WHERE id = $1")
+            .bind(id.as_uuid())
+            .bind(status.to_string())
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }

@@ -55,14 +55,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_event_bus() {
-        let bus = EventBus::new()
-            .subscribe(Box::new(LoggingSubscriber));
-        
+        let bus = EventBus::new().subscribe(Box::new(LoggingSubscriber));
+
         let event = Event::UserOnline {
             user_id: UserId::new(),
             device_id: "test".to_string(),
         };
-        
+
         bus.publish(event).await.unwrap();
     }
 }

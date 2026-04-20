@@ -8,13 +8,13 @@ pub trait AuthProvider: Send + Sync {
     type Claims: Send + Sync + Clone + std::fmt::Debug;
 
     async fn authenticate(&self, token: &str) -> AppResult<Self::Claims>;
-    
+
     async fn validate_token(&self, token: &str) -> AppResult<Self::Claims>;
-    
+
     async fn generate_tokens(&self, user_id: &UserId) -> AppResult<TokenPair>;
-    
+
     async fn refresh_token(&self, refresh_token: &str) -> AppResult<TokenPair>;
-    
+
     async fn revoke_token(&self, token_id: &str) -> AppResult<()>;
 }
 
@@ -64,11 +64,7 @@ impl AuthUser {
 }
 
 pub fn extract_token_from_header(header_value: &str) -> Option<String> {
-    if header_value.starts_with("Bearer ") {
-        Some(header_value[7..].to_string())
-    } else {
-        None
-    }
+    header_value.strip_prefix("Bearer ").map(|s| s.to_string())
 }
 
 #[cfg(test)]
@@ -86,7 +82,7 @@ mod tests {
     fn test_auth_user_creation() {
         let user_id = UserId::new();
         let auth_user = AuthUser::new(user_id, "testuser".to_string());
-        
+
         assert_eq!(auth_user.username, "testuser");
         assert!(auth_user.roles.is_empty());
     }
@@ -96,7 +92,7 @@ mod tests {
         let user_id = UserId::new();
         let auth_user = AuthUser::new(user_id, "testuser".to_string())
             .with_roles(vec!["admin".to_string(), "user".to_string()]);
-        
+
         assert!(auth_user.has_role("admin"));
         assert!(auth_user.has_role("user"));
         assert!(!auth_user.has_role("guest"));
@@ -106,7 +102,7 @@ mod tests {
     fn test_extract_token_from_header() {
         let token = extract_token_from_header("Bearer test_token_123");
         assert_eq!(token, Some("test_token_123".to_string()));
-        
+
         let no_token = extract_token_from_header("Basic abc123");
         assert!(no_token.is_none());
     }

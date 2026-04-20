@@ -1,7 +1,7 @@
 use axum::{
     extract::{
         ws::{Message as WsMessage, WebSocket, WebSocketUpgrade},
-        State, Query,
+        Query, State,
     },
     response::Response,
 };
@@ -9,9 +9,9 @@ use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::domain::{DeviceId, MessageId, UserId};
 use crate::api::AppState;
 use crate::auth::AuthProvider;
+use crate::domain::{DeviceId, MessageId, UserId};
 
 #[derive(Debug, Deserialize)]
 pub struct WsQuery {
@@ -101,12 +101,15 @@ pub async fn ws_handler(
         Err(_) => {
             return ws.on_upgrade(|socket| async move {
                 let (mut sender, _) = socket.split();
-                let _ = sender.send(WsMessage::Text(
-                    serde_json::to_string(&WsServerMessage::Error {
-                        code: 400,
-                        message: "Invalid device_id".to_string(),
-                    }).unwrap()
-                )).await;
+                let _ = sender
+                    .send(WsMessage::Text(
+                        serde_json::to_string(&WsServerMessage::Error {
+                            code: 400,
+                            message: "Invalid device_id".to_string(),
+                        })
+                        .unwrap(),
+                    ))
+                    .await;
             });
         }
     };
@@ -116,23 +119,25 @@ pub async fn ws_handler(
         Err(e) => {
             return ws.on_upgrade(|socket| async move {
                 let (mut sender, _) = socket.split();
-                let _ = sender.send(WsMessage::Text(
-                    serde_json::to_string(&WsServerMessage::Error {
-                        code: 401,
-                        message: format!("Authentication failed: {}", e),
-                    }).unwrap()
-                )).await;
+                let _ = sender
+                    .send(WsMessage::Text(
+                        serde_json::to_string(&WsServerMessage::Error {
+                            code: 401,
+                            message: format!("Authentication failed: {}", e),
+                        })
+                        .unwrap(),
+                    ))
+                    .await;
             });
         }
     };
 
-    ws.on_upgrade(move |socket| {
-        handle_websocket(socket, user_id, device_id, state)
-    })
+    ws.on_upgrade(move |socket| handle_websocket(socket, user_id, device_id, state))
 }
 
 async fn validate_token(state: &AppState, token: &str) -> Result<UserId, String> {
-    let auth_user = state.jwt_provider
+    let auth_user = state
+        .jwt_provider
         .validate_token(token)
         .await
         .map_err(|e| e.to_string())?;
@@ -151,19 +156,23 @@ async fn handle_websocket(
         user_id: user_id.to_string(),
         device_id: device_id.to_string(),
     };
-    if let Err(e) = sender.send(WsMessage::Text(
-        serde_json::to_string(&connected_msg).unwrap()
-    )).await {
+    if let Err(e) = sender
+        .send(WsMessage::Text(
+            serde_json::to_string(&connected_msg).unwrap(),
+        ))
+        .await
+    {
         tracing::error!("Failed to send connected message: {}", e);
         return;
     }
-    
-    let session = state.session_manager
-        .create(user_id, device_id)
-        .await
-        .ok();
 
-    tracing::info!("WebSocket connected: user={}, device={}", user_id, device_id);
+    let session = state.session_manager.create(user_id, device_id).await.ok();
+
+    tracing::info!(
+        "WebSocket connected: user={}, device={}",
+        user_id,
+        device_id
+    );
 
     while let Some(msg) = receiver.next().await {
         match msg {
@@ -171,12 +180,15 @@ async fn handle_websocket(
                 if let Ok(payload) = serde_json::from_str::<WsMessagePayload>(&text) {
                     handle_client_message(&mut sender, payload, &user_id).await;
                 } else {
-                    let _ = sender.send(WsMessage::Text(
-                        serde_json::to_string(&WsServerMessage::Error {
-                            code: 400,
-                            message: "Invalid message format".to_string(),
-                        }).unwrap()
-                    )).await;
+                    let _ = sender
+                        .send(WsMessage::Text(
+                            serde_json::to_string(&WsServerMessage::Error {
+                                code: 400,
+                                message: "Invalid message format".to_string(),
+                            })
+                            .unwrap(),
+                        ))
+                        .await;
                 }
             }
             Ok(WsMessage::Ping(data)) => {
@@ -199,8 +211,12 @@ async fn handle_websocket(
     if let Some(s) = session {
         let _ = state.session_manager.terminate(&s.id).await;
     }
-    
-    tracing::info!("WebSocket disconnected: user={}, device={}", user_id, device_id);
+
+    tracing::info!(
+        "WebSocket disconnected: user={}, device={}",
+        user_id,
+        device_id
+    );
 }
 
 async fn handle_client_message(
@@ -209,7 +225,12 @@ async fn handle_client_message(
     user_id: &UserId,
 ) {
     match payload {
-        WsMessagePayload::Message { conversation_id, content, seq, .. } => {
+        WsMessagePayload::Message {
+            conversation_id,
+            content,
+            seq,
+            ..
+        } => {
             let msg = WsServerMessage::Message {
                 id: MessageId::new().to_string(),
                 conversation_id,
@@ -219,7 +240,9 @@ async fn handle_client_message(
                 created_at: chrono::Utc::now().to_rfc3339(),
                 seq,
             };
-            let _ = sender.send(WsMessage::Text(serde_json::to_string(&msg).unwrap())).await;
+            let _ = sender
+                .send(WsMessage::Text(serde_json::to_string(&msg).unwrap()))
+                .await;
         }
         WsMessagePayload::Ack { message_id, seq } => {
             let ack = WsServerMessage::Ack {
@@ -227,7 +250,9 @@ async fn handle_client_message(
                 status: "delivered".to_string(),
                 seq,
             };
-            let _ = sender.send(WsMessage::Text(serde_json::to_string(&ack).unwrap())).await;
+            let _ = sender
+                .send(WsMessage::Text(serde_json::to_string(&ack).unwrap()))
+                .await;
         }
         _ => {}
     }
@@ -246,7 +271,7 @@ mod tests {
             reply_to: None,
             seq: 1,
         };
-        
+
         let json = serde_json::to_string(&payload).unwrap();
         assert!(json.contains("message"));
     }
@@ -258,7 +283,7 @@ mod tests {
             status: "delivered".to_string(),
             seq: 1,
         };
-        
+
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("ack"));
     }

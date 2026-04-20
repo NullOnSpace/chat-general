@@ -1,5 +1,5 @@
 pub mod device_registry;
 pub mod manager;
 
-pub use device_registry::{DeviceRegistry, DeviceInfo};
-pub use manager::{SessionManager, Session, SessionId};
+pub use device_registry::{DeviceInfo, DeviceRegistry};
+pub use manager::{Session, SessionId, SessionManager};

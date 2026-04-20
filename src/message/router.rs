@@ -12,33 +12,37 @@ pub struct MessageRouter<S: MessageStore> {
 
 impl<S: MessageStore> MessageRouter<S> {
     pub fn new(store: S, device_registry: DeviceRegistry) -> Self {
-        Self { store, device_registry }
+        Self {
+            store,
+            device_registry,
+        }
     }
 
     pub async fn route(&self, message: &Message) -> AppResult<Vec<DeviceId>> {
         let _stored = self.store.store(message).await?;
-        
+
         let recipient_devices = match message.is_system() {
             true => {
                 let all_online = self.device_registry.get_online_users().await;
                 let mut devices = Vec::new();
                 for user_id in all_online {
                     devices.extend(
-                        self.device_registry.get_online_devices(&user_id)
+                        self.device_registry
+                            .get_online_devices(&user_id)
                             .await
                             .into_iter()
-                            .map(|d| d.device_id)
+                            .map(|d| d.device_id),
                     );
                 }
                 devices
             }
-            false => {
-                self.device_registry.get_online_devices(&message.sender_id)
-                    .await
-                    .into_iter()
-                    .map(|d| d.device_id)
-                    .collect()
-            }
+            false => self
+                .device_registry
+                .get_online_devices(&message.sender_id)
+                .await
+                .into_iter()
+                .map(|d| d.device_id)
+                .collect(),
         };
 
         Ok(recipient_devices)
@@ -59,7 +63,9 @@ impl<S: MessageStore> MessageRouter<S> {
         user_id: &UserId,
         device_id: &DeviceId,
     ) -> AppResult<()> {
-        self.store.mark_delivered(message_id, user_id, device_id).await
+        self.store
+            .mark_delivered(message_id, user_id, device_id)
+            .await
     }
 
     pub async fn mark_read(
@@ -90,10 +96,11 @@ impl<S: MessageStore> HistoryService<S> {
         let mut result = Vec::new();
 
         for conv_id in conversation_ids {
-            let messages = self.store
+            let messages = self
+                .store
                 .get_history(conv_id, Some(last_sync), limit_per_conversation)
                 .await?;
-            
+
             if !messages.is_empty() {
                 result.push((*conv_id, messages));
             }
@@ -121,17 +128,20 @@ mod tests {
     async fn test_history_service() {
         let store = InMemoryMessageStore::new();
         let service = HistoryService::new(store);
-        
+
         let conv_id = ConversationId::new();
         let user_id = UserId::new();
-        
+
         for i in 0..3 {
             let msg = Message::text(conv_id, user_id, format!("Message {}", i));
             service.store.store(&msg).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
-        
-        let history = service.get_conversation_history(&conv_id, None, 10).await.unwrap();
+
+        let history = service
+            .get_conversation_history(&conv_id, None, 10)
+            .await
+            .unwrap();
         assert_eq!(history.len(), 3);
     }
 }

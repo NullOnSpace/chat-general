@@ -22,21 +22,20 @@ impl ChatServer {
 
     pub async fn run(self) -> AppResult<()> {
         let addr: SocketAddr = self.settings.server.addr();
-        
+
         tracing::info!(
             server.host = %self.settings.server.host,
             server.port = %self.settings.server.port,
             "Starting Chat-General server"
         );
-        
-        let listener = TcpListener::bind(addr).await
-            .map_err(|e| {
-                tracing::error!(error = %e, "Failed to bind to address {}", addr);
-                crate::error::AppError::Internal(e.to_string())
-            })?;
-        
+
+        let listener = TcpListener::bind(addr).await.map_err(|e| {
+            tracing::error!(error = %e, "Failed to bind to address {}", addr);
+            crate::error::AppError::Internal(e.to_string())
+        })?;
+
         tracing::info!("Server listening on {}", addr);
-        
+
         let router = create_routes()
             .layer(
                 CorsLayer::new()
@@ -46,12 +45,12 @@ impl ChatServer {
             )
             .layer(TraceLayer::new_for_http())
             .with_state(self.app_state);
-        
+
         if let Err(e) = axum::serve(listener, router).await {
             tracing::error!(error = %e, "Server error");
             return Err(crate::error::AppError::Internal(e.to_string()));
         }
-        
+
         tracing::info!("Server shutdown complete");
         Ok(())
     }
@@ -76,7 +75,7 @@ impl ServerBuilder {
     }
 
     pub fn add_handler(mut self, handler: Box<dyn crate::message::MessageHandler>) -> Self {
-        self.handlers = self.handlers.add(handler);
+        self.handlers = self.handlers.with_handler(handler);
         self
     }
 
@@ -86,7 +85,10 @@ impl ServerBuilder {
 
         let app_state = AppState::new();
 
-        Ok(ChatServer { settings, app_state })
+        Ok(ChatServer {
+            settings,
+            app_state,
+        })
     }
 }
 
@@ -100,7 +102,7 @@ mod tests {
             .settings(Settings::default())
             .build()
             .unwrap();
-        
+
         assert_eq!(server.settings.server.port, 8080);
     }
 }

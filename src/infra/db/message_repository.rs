@@ -2,7 +2,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
-use crate::domain::{Message, MessageId, MessageStatus, ConversationId, UserId, DeviceId, MessageDelivery};
+use crate::domain::{
+    ConversationId, DeviceId, Message, MessageDelivery, MessageId, MessageStatus, UserId,
+};
 use crate::error::AppResult;
 
 #[async_trait]
@@ -17,8 +19,18 @@ pub trait MessageRepository: Send + Sync {
     ) -> AppResult<Vec<Message>>;
     async fn update_status(&self, id: &MessageId, status: MessageStatus) -> AppResult<()>;
     async fn create_delivery(&self, delivery: &MessageDelivery) -> AppResult<()>;
-    async fn mark_delivered(&self, message_id: &MessageId, user_id: &UserId, device_id: &DeviceId) -> AppResult<()>;
-    async fn mark_read(&self, message_id: &MessageId, user_id: &UserId, device_id: &DeviceId) -> AppResult<()>;
+    async fn mark_delivered(
+        &self,
+        message_id: &MessageId,
+        user_id: &UserId,
+        device_id: &DeviceId,
+    ) -> AppResult<()>;
+    async fn mark_read(
+        &self,
+        message_id: &MessageId,
+        user_id: &UserId,
+        device_id: &DeviceId,
+    ) -> AppResult<()>;
     async fn find_deliveries(&self, message_id: &MessageId) -> AppResult<Vec<MessageDelivery>>;
 }
 
@@ -59,12 +71,10 @@ impl MessageRepository for PostgresMessageRepository {
     }
 
     async fn find_by_id(&self, id: &MessageId) -> AppResult<Option<Message>> {
-        let record = sqlx::query_as::<_, Message>(
-            "SELECT * FROM messages WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .fetch_optional(&self.pool)
-        .await?;
+        let record = sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE id = $1")
+            .bind(id.as_uuid())
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(record)
     }
@@ -111,13 +121,11 @@ impl MessageRepository for PostgresMessageRepository {
     }
 
     async fn update_status(&self, id: &MessageId, status: MessageStatus) -> AppResult<()> {
-        sqlx::query(
-            "UPDATE messages SET status = $2 WHERE id = $1",
-        )
-        .bind(id.as_uuid())
-        .bind(status.to_string())
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE messages SET status = $2 WHERE id = $1")
+            .bind(id.as_uuid())
+            .bind(status.to_string())
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }
@@ -141,7 +149,12 @@ impl MessageRepository for PostgresMessageRepository {
         Ok(())
     }
 
-    async fn mark_delivered(&self, message_id: &MessageId, user_id: &UserId, device_id: &DeviceId) -> AppResult<()> {
+    async fn mark_delivered(
+        &self,
+        message_id: &MessageId,
+        user_id: &UserId,
+        device_id: &DeviceId,
+    ) -> AppResult<()> {
         sqlx::query(
             r#"
             INSERT INTO message_deliveries (message_id, user_id, device_id, delivered_at)
@@ -158,7 +171,12 @@ impl MessageRepository for PostgresMessageRepository {
         Ok(())
     }
 
-    async fn mark_read(&self, message_id: &MessageId, user_id: &UserId, device_id: &DeviceId) -> AppResult<()> {
+    async fn mark_read(
+        &self,
+        message_id: &MessageId,
+        user_id: &UserId,
+        device_id: &DeviceId,
+    ) -> AppResult<()> {
         sqlx::query(
             r#"
             INSERT INTO message_deliveries (message_id, user_id, device_id, delivered_at, read_at)

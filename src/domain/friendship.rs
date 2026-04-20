@@ -70,19 +70,14 @@ impl From<FriendshipId> for Uuid {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FriendshipStatus {
+    #[default]
     Pending,
     Accepted,
     Rejected,
     Blocked,
-}
-
-impl Default for FriendshipStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 impl std::fmt::Display for FriendshipStatus {
@@ -217,9 +212,18 @@ mod tests {
 
     #[test]
     fn test_friendship_status_from_str() {
-        assert_eq!(FriendshipStatus::from_str("pending").unwrap(), FriendshipStatus::Pending);
-        assert_eq!(FriendshipStatus::from_str("ACCEPTED").unwrap(), FriendshipStatus::Accepted);
-        assert_eq!(FriendshipStatus::from_str("rejected").unwrap(), FriendshipStatus::Rejected);
+        assert_eq!(
+            FriendshipStatus::from_str("pending").unwrap(),
+            FriendshipStatus::Pending
+        );
+        assert_eq!(
+            FriendshipStatus::from_str("ACCEPTED").unwrap(),
+            FriendshipStatus::Accepted
+        );
+        assert_eq!(
+            FriendshipStatus::from_str("rejected").unwrap(),
+            FriendshipStatus::Rejected
+        );
         assert!(FriendshipStatus::from_str("invalid").is_err());
     }
 
@@ -228,7 +232,7 @@ mod tests {
         let from = UserId::new();
         let to = UserId::new();
         let request = FriendRequest::new(from, to, Some("Hello".to_string()));
-        
+
         assert!(request.is_pending());
         assert_eq!(request.from_user, from);
         assert_eq!(request.to_user, to);
@@ -241,7 +245,7 @@ mod tests {
         let to = UserId::new();
         let request = FriendRequest::new(from, to, None);
         let accepted = request.accept();
-        
+
         assert_eq!(accepted.status, FriendshipStatus::Accepted);
         assert!(!accepted.is_pending());
     }
@@ -251,7 +255,7 @@ mod tests {
         let user_id = UserId::new();
         let friend_id = UserId::new();
         let friendship = Friendship::new(user_id, friend_id);
-        
+
         assert_eq!(friendship.user_id, user_id);
         assert_eq!(friendship.friend_id, friend_id);
         assert!(friendship.remark.is_none());
@@ -261,9 +265,8 @@ mod tests {
     fn test_friendship_with_remark() {
         let user_id = UserId::new();
         let friend_id = UserId::new();
-        let friendship = Friendship::new(user_id, friend_id)
-            .with_remark("Best friend".to_string());
-        
+        let friendship = Friendship::new(user_id, friend_id).with_remark("Best friend".to_string());
+
         assert_eq!(friendship.remark, Some("Best friend".to_string()));
     }
 }
