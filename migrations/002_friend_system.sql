@@ -20,13 +20,14 @@ CREATE TABLE IF NOT EXISTS friendships (
     UNIQUE(user_id, friend_id)
 );
 
--- 索引
-CREATE INDEX idx_friend_requests_to_user ON friend_requests(to_user_id, status);
-CREATE INDEX idx_friend_requests_from_user ON friend_requests(from_user_id);
-CREATE INDEX idx_friendships_user ON friendships(user_id);
-CREATE INDEX idx_friendships_friend ON friendships(friend_id);
+-- 索引 (使用 IF NOT EXISTS 避免重复创建)
+CREATE INDEX IF NOT EXISTS idx_friend_requests_to_user ON friend_requests(to_user_id, status);
+CREATE INDEX IF NOT EXISTS idx_friend_requests_from_user ON friend_requests(from_user_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_user ON friendships(user_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_friend ON friendships(friend_id);
 
--- 触发器
+-- 触发器 (先删除再创建避免重复)
+DROP TRIGGER IF EXISTS update_friend_requests_updated_at ON friend_requests;
 CREATE TRIGGER update_friend_requests_updated_at
     BEFORE UPDATE ON friend_requests
     FOR EACH ROW

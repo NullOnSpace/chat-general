@@ -90,30 +90,30 @@ CREATE TABLE IF NOT EXISTS group_members (
     PRIMARY KEY (group_id, user_id)
 );
 
--- 创建索引
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_status ON users(status);
+-- 创建索引 (使用 IF NOT EXISTS 避免重复创建)
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
 
-CREATE INDEX idx_devices_user_id ON devices(user_id);
-CREATE INDEX idx_devices_last_active ON devices(last_active_at);
+CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices(user_id);
+CREATE INDEX IF NOT EXISTS idx_devices_last_active ON devices(last_active_at);
 
-CREATE INDEX idx_conversations_type ON conversations(conversation_type);
-CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_type ON conversations(conversation_type);
+CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at DESC);
 
-CREATE INDEX idx_conversation_participants_user ON conversation_participants(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_participants_user ON conversation_participants(user_id);
 
-CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at DESC);
-CREATE INDEX idx_messages_sender ON messages(sender_id);
-CREATE INDEX idx_messages_created ON messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC);
 
-CREATE INDEX idx_message_deliveries_message ON message_deliveries(message_id);
-CREATE INDEX idx_message_deliveries_user ON message_deliveries(user_id);
+CREATE INDEX IF NOT EXISTS idx_message_deliveries_message ON message_deliveries(message_id);
+CREATE INDEX IF NOT EXISTS idx_message_deliveries_user ON message_deliveries(user_id);
 
-CREATE INDEX idx_groups_owner ON groups(owner_id);
-CREATE INDEX idx_groups_public ON groups(is_public);
+CREATE INDEX IF NOT EXISTS idx_groups_owner ON groups(owner_id);
+CREATE INDEX IF NOT EXISTS idx_groups_public ON groups(is_public);
 
-CREATE INDEX idx_group_members_user ON group_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
 
 -- 创建更新时间触发器函数
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -124,22 +124,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 为需要的表创建触发器
+-- 删除已存在的触发器再创建 (避免重复创建错误)
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;
 CREATE TRIGGER update_conversations_updated_at
     BEFORE UPDATE ON conversations
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_messages_updated_at ON messages;
 CREATE TRIGGER update_messages_updated_at
     BEFORE UPDATE ON messages
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_groups_updated_at ON groups;
 CREATE TRIGGER update_groups_updated_at
     BEFORE UPDATE ON groups
     FOR EACH ROW
