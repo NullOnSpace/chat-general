@@ -1,4 +1,5 @@
 use super::common::*;
+use axum::body::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use serial_test::serial;
@@ -150,7 +151,7 @@ async fn test_websocket_send_message() {
     });
 
     let send_result = sender
-        .send(WsMessage::Text(message_payload.to_string()))
+        .send(WsMessage::Text(message_payload.to_string().into()))
         .await;
     assert!(send_result.is_ok(), "Sending message should succeed");
 }
@@ -183,7 +184,7 @@ async fn test_websocket_send_invalid_json() {
     }
 
     let send_result = sender
-        .send(WsMessage::Text("invalid json {{{".to_string()))
+        .send(WsMessage::Text("invalid json {{{".to_string().into()))
         .await;
     assert!(send_result.is_ok(), "Sending invalid JSON should not crash");
 
@@ -224,8 +225,8 @@ async fn test_websocket_ping_pong() {
         }
     }
 
-    let ping_data = vec![1, 2, 3, 4];
-    let send_result = sender.send(WsMessage::Ping(ping_data.clone())).await;
+    let ping_data = Bytes::from(vec![1, 2, 3, 4]);
+    let send_result = sender.send(WsMessage::Ping(ping_data)).await;
     assert!(send_result.is_ok(), "Sending ping should succeed");
 
     let mut received_pong = false;

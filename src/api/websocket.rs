@@ -107,7 +107,8 @@ pub async fn ws_handler(
                             code: 400,
                             message: "Invalid device_id".to_string(),
                         })
-                        .unwrap(),
+                        .unwrap()
+                        .into(),
                     ))
                     .await;
             });
@@ -125,7 +126,8 @@ pub async fn ws_handler(
                             code: 401,
                             message: format!("Authentication failed: {}", e),
                         })
-                        .unwrap(),
+                        .unwrap()
+                        .into(),
                     ))
                     .await;
             });
@@ -158,7 +160,7 @@ async fn handle_websocket(
     };
     if let Err(e) = sender
         .send(WsMessage::Text(
-            serde_json::to_string(&connected_msg).unwrap(),
+            serde_json::to_string(&connected_msg).unwrap().into(),
         ))
         .await
     {
@@ -186,7 +188,8 @@ async fn handle_websocket(
                                 code: 400,
                                 message: "Invalid message format".to_string(),
                             })
-                            .unwrap(),
+                            .unwrap()
+                            .into(),
                         ))
                         .await;
                 }
@@ -241,7 +244,7 @@ async fn handle_client_message(
                 seq,
             };
             let _ = sender
-                .send(WsMessage::Text(serde_json::to_string(&msg).unwrap()))
+                .send(WsMessage::Text(serde_json::to_string(&msg).unwrap().into()))
                 .await;
         }
         WsMessagePayload::Ack { message_id, seq } => {
@@ -251,7 +254,7 @@ async fn handle_client_message(
                 seq,
             };
             let _ = sender
-                .send(WsMessage::Text(serde_json::to_string(&ack).unwrap()))
+                .send(WsMessage::Text(serde_json::to_string(&ack).unwrap().into()))
                 .await;
         }
         _ => {}

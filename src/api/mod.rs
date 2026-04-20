@@ -80,28 +80,28 @@ pub fn create_routes() -> Router<AppState> {
             post(handlers::message::create_conversation),
         )
         .route(
-            "/conversations/:id",
+            "/conversations/{id}",
             get(handlers::message::get_conversation),
         )
         .route(
-            "/conversations/:id/messages",
+            "/conversations/{id}/messages",
             get(handlers::message::get_messages),
         )
         .route("/messages", post(handlers::message::send_message))
         .route("/groups", get(handlers::group::get_user_groups))
         .route("/groups", post(handlers::group::create_group))
-        .route("/groups/:id", get(handlers::group::get_group))
+        .route("/groups/{id}", get(handlers::group::get_group))
         .route(
-            "/groups/:id/members",
+            "/groups/{id}/members",
             get(handlers::group::get_group_members),
         )
-        .route("/groups/:id/members", put(handlers::group::add_member))
+        .route("/groups/{id}/members", put(handlers::group::add_member))
         .route(
-            "/groups/:id/members/:uid",
+            "/groups/{id}/members/{uid}",
             delete(handlers::group::remove_member),
         )
         .route("/friends", get(handlers::friend::get_friends))
-        .route("/friends/:uid", delete(handlers::friend::delete_friend))
+        .route("/friends/{uid}", delete(handlers::friend::delete_friend))
         .route(
             "/friends/requests",
             get(handlers::friend::get_pending_requests),
@@ -115,11 +115,11 @@ pub fn create_routes() -> Router<AppState> {
             get(handlers::friend::get_sent_requests),
         )
         .route(
-            "/friends/requests/:id/accept",
+            "/friends/requests/{id}/accept",
             put(handlers::friend::accept_friend_request),
         )
         .route(
-            "/friends/requests/:id/reject",
+            "/friends/requests/{id}/reject",
             delete(handlers::friend::reject_friend_request),
         );
 
