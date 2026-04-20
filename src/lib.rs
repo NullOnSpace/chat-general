@@ -11,6 +11,6 @@ pub mod event;
 pub mod api;
 pub mod server;
 
-pub use config::Settings;
+pub use config::{Settings, LoggingSettings, init_logging, init_logging_with_settings};
 pub use error::{AppError, AppResult, AuthError};
 pub use server::{ChatServer, ServerBuilder};

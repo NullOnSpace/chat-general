@@ -82,23 +82,30 @@ pub async fn send_friend_request(
         .map_err(|_| AppError::Validation("Invalid user ID".into()))?;
     let to_user_id = UserId::from(to_uuid);
 
+    tracing::debug!(from_user_id = %from_user_id, to_user_id = %to_user_id, "Friend request attempt");
+
     if from_user_id == to_user_id {
+        tracing::warn!(user_id = %from_user_id, "User attempted to send friend request to self");
         return Err(AppError::Validation("Cannot send friend request to yourself".into()));
     }
 
     let is_friend = state.friend_service.is_friend(&from_user_id, &to_user_id).await?;
     if is_friend {
+        tracing::debug!(from_user_id = %from_user_id, to_user_id = %to_user_id, "Already friends");
         return Err(AppError::Validation("Already friends with this user".into()));
     }
 
     let has_pending = state.friend_service.has_pending_request(&from_user_id, &to_user_id).await?;
     if has_pending {
+        tracing::debug!(from_user_id = %from_user_id, to_user_id = %to_user_id, "Pending request already exists");
         return Err(AppError::Validation("Friend request already pending".into()));
     }
 
     let request = state.friend_service
         .send_request(from_user_id, to_user_id, req.message)
         .await?;
+
+    tracing::info!(request_id = %request.id, from_user_id = %from_user_id, to_user_id = %to_user_id, "Friend request sent");
 
     Ok(Json(FriendRequestResponse::from(request)))
 }

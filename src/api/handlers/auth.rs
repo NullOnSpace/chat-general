@@ -16,11 +16,15 @@ pub async fn register(
     State(state): State<AppState>,
     Json(req): Json<RegisterRequest>,
 ) -> AppResult<Json<UserResponse>> {
+    tracing::debug!(username = %req.username, email = %req.email, "User registration request");
+    
     if let Err(e) = req.validate() {
+        tracing::warn!(error = %e, "Registration validation failed");
         return Err(AppError::Validation(e.to_string()));
     }
     
     if req.password.len() < 6 {
+        tracing::warn!("Password too short for user {}", req.username);
         return Err(AppError::Validation("Password must be at least 6 characters".to_string()));
     }
     
@@ -32,6 +36,8 @@ pub async fn register(
     
     let user = state.user_store.create(user).await?;
     
+    tracing::info!(user.id = %user.id, user.username = %user.username, "User registered successfully");
+    
     Ok(Json(UserResponse::from(user)))
 }
 
@@ -39,17 +45,24 @@ pub async fn login(
     State(state): State<AppState>,
     Json(req): Json<LoginRequest>,
 ) -> AppResult<Json<serde_json::Value>> {
+    tracing::debug!(username = %req.username, "User login request");
+    
     if req.username.is_empty() || req.password.is_empty() {
+        tracing::warn!("Login attempt with empty credentials");
         return Err(AppError::Unauthorized("Invalid credentials".to_string()));
     }
     
     let user = state.user_store.get_by_username(&req.username).await
-        .ok_or_else(|| AppError::Unauthorized("User not found".to_string()))?;
+        .ok_or_else(|| {
+            tracing::warn!(username = %req.username, "Login failed: user not found");
+            AppError::Unauthorized("User not found".to_string())
+        })?;
     
     let password_hasher = PasswordHasher::new();
     let is_valid = password_hasher.verify(&req.password, &user.password_hash)?;
     
     if !is_valid {
+        tracing::warn!(username = %req.username, "Login failed: invalid password");
         return Err(AppError::Unauthorized("Invalid password".to_string()));
     }
     
@@ -59,6 +72,8 @@ pub async fn login(
         &user.username,
         &roles,
     )?;
+    
+    tracing::info!(user.id = %user.id, user.username = %user.username, "User logged in successfully");
     
     Ok(Json(json!({
         "access_token": token_pair.access_token,

@@ -1,24 +1,17 @@
-use chat_general::{Settings, ChatServer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use chat_general::{Settings, ChatServer, init_logging};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "chat_general=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    init_logging();
 
     let settings = Settings::new()?;
     
     tracing::info!(
-        "Starting Chat-General server on {}:{}",
-        settings.server.host,
-        settings.server.port
+        server.host = %settings.server.host,
+        server.port = %settings.server.port,
+        "Starting Chat-General server"
     );
 
     let server = ChatServer::builder()

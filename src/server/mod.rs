@@ -23,10 +23,19 @@ impl ChatServer {
     pub async fn run(self) -> AppResult<()> {
         let addr: SocketAddr = self.settings.server.addr();
         
-        tracing::info!("Starting server on {}", addr);
+        tracing::info!(
+            server.host = %self.settings.server.host,
+            server.port = %self.settings.server.port,
+            "Starting Chat-General server"
+        );
         
         let listener = TcpListener::bind(addr).await
-            .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!(error = %e, "Failed to bind to address {}", addr);
+                crate::error::AppError::Internal(e.to_string())
+            })?;
+        
+        tracing::info!("Server listening on {}", addr);
         
         let router = create_routes()
             .layer(
@@ -38,10 +47,12 @@ impl ChatServer {
             .layer(TraceLayer::new_for_http())
             .with_state(self.app_state);
         
-        axum::serve(listener, router)
-            .await
-            .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
+        if let Err(e) = axum::serve(listener, router).await {
+            tracing::error!(error = %e, "Server error");
+            return Err(crate::error::AppError::Internal(e.to_string()));
+        }
         
+        tracing::info!("Server shutdown complete");
         Ok(())
     }
 }
