@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use garde::Validate;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct LoginRequest {

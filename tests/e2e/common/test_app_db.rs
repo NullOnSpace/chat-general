@@ -25,12 +25,12 @@ impl TestAppWithDb {
         let address = format!("127.0.0.1:{}", port);
 
         let pool = create_test_pool().await;
-        
+
         sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
             .execute(&pool)
             .await
             .ok();
-        
+
         run_migrations(&pool)
             .await
             .expect("Failed to run migrations");
