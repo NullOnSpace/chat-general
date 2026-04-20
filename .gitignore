@@ -2,3 +2,12 @@
 # 云端测试审查的报告
 /report
 .env
+
+# Node.js
+node_modules/
+
+# Playwright 测试
+test-results/
+playwright-report/
+playwright/.cache/
+.last-run.json

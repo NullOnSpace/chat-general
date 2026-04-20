@@ -1,0 +1,32 @@
+{
+  "name": "chat-general",
+  "version": "1.0.0",
+  "description": "[![CI](https://github.com/NullOnSpace/chat-general/workflows/CI/badge.svg)](https://github.com/NullOnSpace/chat-general/actions/workflows/ci.yml) [![Release](https://github.com/NullOnSpace/chat-general/workflows/Release/badge.svg)](https://github.com/NullOnSpace/chat-general/actions/workflows/release.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/) [![Documentation](https://img.shields.io/badge/docs-latest-green.svg)](docs/)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NullOnSpace/chat-general.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/NullOnSpace/chat-general/issues"
+  },
+  "homepage": "https://github.com/NullOnSpace/chat-general#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
+  }
+}
