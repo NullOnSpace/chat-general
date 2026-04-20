@@ -1,24 +1,27 @@
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use garde::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct LoginRequest {
-    #[validate(length(min = 3, max = 50))]
+    #[garde(length(min = 3, max = 50))]
     pub username: String,
-    #[validate(length(min = 6))]
+    #[garde(length(min = 6))]
     pub password: String,
+    #[garde(skip)]
     pub device_name: Option<String>,
+    #[garde(skip)]
     pub device_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct RegisterRequest {
-    #[validate(length(min = 3, max = 50))]
+    #[garde(length(min = 3, max = 50))]
     pub username: String,
-    #[validate(email)]
+    #[garde(email)]
     pub email: String,
-    #[validate(length(min = 6))]
+    #[garde(length(min = 6))]
     pub password: String,
+    #[garde(skip)]
     pub display_name: Option<String>,
 }
 
@@ -29,11 +32,15 @@ pub struct RefreshTokenRequest {
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct SendMessageRequest {
+    #[garde(skip)]
     pub conversation_id: String,
-    #[validate(length(min = 1, max = 10000))]
+    #[garde(length(min = 1, max = 10000))]
     pub content: String,
+    #[garde(skip)]
     pub message_type: Option<String>,
+    #[garde(skip)]
     pub reply_to: Option<String>,
+    #[garde(skip)]
     pub metadata: Option<serde_json::Value>,
 }
 
@@ -45,10 +52,13 @@ pub struct CreateConversationRequest {
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateGroupRequest {
-    #[validate(length(min = 1, max = 100))]
+    #[garde(length(min = 1, max = 100))]
     pub name: String,
+    #[garde(skip)]
     pub description: Option<String>,
+    #[garde(skip)]
     pub max_members: Option<u32>,
+    #[garde(skip)]
     pub is_public: Option<bool>,
 }
 

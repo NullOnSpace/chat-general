@@ -1,6 +1,6 @@
 use axum::{extract::State, Json};
 use serde_json::json;
-use validator::Validate;
+use garde::Validate;
 
 use crate::api::dto::*;
 use crate::api::AppState;

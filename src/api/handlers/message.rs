@@ -2,7 +2,7 @@ use axum::{extract::State, Json};
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
-use validator::Validate;
+use garde::Validate;
 
 use crate::api::dto::*;
 use crate::api::AppState;
