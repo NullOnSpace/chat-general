@@ -29,10 +29,15 @@ fn default_port() -> u16 {
 }
 
 impl ServerSettings {
-    pub fn addr(&self) -> SocketAddr {
+    pub fn addr(&self) -> Result<SocketAddr, crate::error::AppError> {
         format!("{}:{}", self.host, self.port)
             .parse()
-            .expect("Invalid server address")
+            .map_err(|_| {
+                crate::error::AppError::Internal(format!(
+                    "Invalid server address: {}:{}",
+                    self.host, self.port
+                ))
+            })
     }
 }
 
@@ -323,6 +328,6 @@ mod tests {
             port: 3000,
             ..Settings::default().server
         };
-        assert_eq!(server.addr().to_string(), "127.0.0.1:3000");
+        assert_eq!(server.addr().unwrap().to_string(), "127.0.0.1:3000");
     }
 }

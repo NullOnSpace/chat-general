@@ -24,7 +24,7 @@ impl ChatServer {
     }
 
     pub async fn run(self) -> AppResult<()> {
-        let addr: SocketAddr = self.settings.server.addr();
+        let addr: SocketAddr = self.settings.server.addr()?;
 
         tracing::info!(
             server.host = %self.settings.server.host,
@@ -47,9 +47,9 @@ impl ChatServer {
             .with_state(self.app_state);
 
         let shutdown_signal = async {
-            tokio::signal::ctrl_c()
-                .await
-                .expect("Failed to install CTRL+C handler");
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                tracing::error!("Failed to install CTRL+C handler: {}", e);
+            }
             tracing::info!("Received shutdown signal, draining connections...");
         };
 

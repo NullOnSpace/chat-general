@@ -14,6 +14,13 @@ use crate::auth::AuthProvider;
 use crate::domain::{DeviceId, UserId};
 use crate::session::Session;
 
+fn serialize_ws_message(msg: &WsServerMessage) -> String {
+    serde_json::to_string(msg).unwrap_or_else(|e| {
+        tracing::error!("Failed to serialize WebSocket message: {}", e);
+        r#"{"type":"error","code":500,"message":"Internal serialization error"}"#.to_string()
+    })
+}
+
 #[derive(Debug, Deserialize)]
 pub struct WsQuery {
     pub token: String,
@@ -119,11 +126,10 @@ pub async fn ws_handler(
                 let (mut sender, _) = socket.split();
                 let _ = sender
                     .send(WsMessage::Text(
-                        serde_json::to_string(&WsServerMessage::Error {
+                        serialize_ws_message(&WsServerMessage::Error {
                             code: 400,
                             message: "Invalid device_id".to_string(),
                         })
-                        .unwrap()
                         .into(),
                     ))
                     .await;
@@ -138,11 +144,10 @@ pub async fn ws_handler(
                 let (mut sender, _) = socket.split();
                 let _ = sender
                     .send(WsMessage::Text(
-                        serde_json::to_string(&WsServerMessage::Error {
+                        serialize_ws_message(&WsServerMessage::Error {
                             code: 401,
                             message: format!("Authentication failed: {}", e),
                         })
-                        .unwrap()
                         .into(),
                     ))
                     .await;
@@ -176,7 +181,7 @@ async fn handle_websocket(
     };
     if let Err(e) = ws_sender
         .send(WsMessage::Text(
-            serde_json::to_string(&connected_msg).unwrap().into(),
+            serialize_ws_message(&connected_msg).into(),
         ))
         .await
     {
@@ -301,8 +306,8 @@ async fn handle_client_message(state: &AppState, user_id: &UserId, payload: WsMe
                 seq,
             };
 
-            let msg_json = serde_json::to_string(&msg).unwrap();
-            let msg_sent_json = serde_json::to_string(&msg_sent).unwrap();
+            let msg_json = serialize_ws_message(&msg);
+            let msg_sent_json = serialize_ws_message(&msg_sent);
 
             let participants = state
                 .message_store
@@ -334,7 +339,7 @@ async fn handle_client_message(state: &AppState, user_id: &UserId, payload: WsMe
                 conversation_id: conversation_id.clone(),
                 is_typing,
             };
-            let msg_json = serde_json::to_string(&typing_msg).unwrap();
+            let msg_json = serialize_ws_message(&typing_msg);
 
             let conv_id = match crate::domain::ConversationId::try_from(conversation_id) {
                 Ok(id) => id,
