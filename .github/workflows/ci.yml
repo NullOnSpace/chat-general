@@ -109,7 +109,7 @@ jobs:
     
     services:
       postgres:
-        image: postgres:14
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -151,23 +151,9 @@ jobs:
             ${{ runner.os }}-cargo-e2e-
             ${{ runner.os }}-cargo-
 
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h localhost -p 5432 -U postgres; do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
-
-      - name: Run database migrations
-        run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d chat_test -f migrations/001_initial_schema.sql
-          PGPASSWORD=postgres psql -h localhost -U postgres -d chat_test -f migrations/002_friend_system.sql
-
       - name: Run E2E tests
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/chat_test
-          CHAT__REDIS__HOST: localhost
-          CHAT__REDIS__PORT: 6379
         run: cargo test --test e2e_tests
 
   build:

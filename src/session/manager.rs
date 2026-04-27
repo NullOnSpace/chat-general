@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -66,6 +67,7 @@ pub struct SessionManager {
     sessions: Arc<RwLock<HashMap<SessionId, Session>>>,
     user_sessions: Arc<RwLock<HashMap<UserId, Vec<SessionId>>>>,
     device_sessions: Arc<RwLock<HashMap<DeviceId, SessionId>>>,
+    user_senders: Arc<RwLock<HashMap<UserId, Vec<mpsc::UnboundedSender<String>>>>>,
 }
 
 impl Default for SessionManager {
@@ -80,7 +82,43 @@ impl SessionManager {
             sessions: Arc::new(RwLock::new(HashMap::new())),
             user_sessions: Arc::new(RwLock::new(HashMap::new())),
             device_sessions: Arc::new(RwLock::new(HashMap::new())),
+            user_senders: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    pub async fn register_sender(&self, user_id: UserId, sender: mpsc::UnboundedSender<String>) {
+        let mut user_senders = self.user_senders.write().await;
+        user_senders.entry(user_id).or_default().push(sender);
+    }
+
+    pub async fn unregister_sender(&self, user_id: &UserId) {
+        let mut user_senders = self.user_senders.write().await;
+        if let Some(senders) = user_senders.get_mut(user_id) {
+            senders.retain(|s| !s.is_closed());
+            if senders.is_empty() {
+                user_senders.remove(user_id);
+            }
+        }
+    }
+
+    pub async fn send_to_user(&self, user_id: &UserId, message: &str) -> usize {
+        let user_senders = self.user_senders.read().await;
+        if let Some(senders) = user_senders.get(user_id) {
+            let mut sent = 0;
+            for sender in senders {
+                if sender.send(message.to_string()).is_ok() {
+                    sent += 1;
+                }
+            }
+            sent
+        } else {
+            0
+        }
+    }
+
+    pub async fn is_user_online(&self, user_id: &UserId) -> bool {
+        let user_senders = self.user_senders.read().await;
+        user_senders.get(user_id).is_some_and(|s| !s.is_empty())
     }
 
     pub async fn create(&self, user_id: UserId, device_id: DeviceId) -> AppResult<Session> {

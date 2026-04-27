@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
-use crate::domain::{ConversationId, DeviceId, Message, MessageId, UserId};
+use crate::domain::{Conversation, ConversationId, DeviceId, Message, MessageId, UserId};
 use crate::error::AppResult;
 
 #[async_trait]
@@ -26,11 +26,18 @@ pub trait MessageStore: Send + Sync {
         user_id: &UserId,
         device_id: &DeviceId,
     ) -> AppResult<()>;
+    async fn save_conversation(&self, conversation: Conversation) -> AppResult<()>;
+    async fn get_user_conversations(&self, user_id: &UserId) -> AppResult<Vec<Conversation>>;
 }
 
 #[derive(Clone)]
 pub struct InMemoryMessageStore {
     messages: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<MessageId, Message>>>,
+    conversations: std::sync::Arc<
+        tokio::sync::RwLock<std::collections::HashMap<ConversationId, Conversation>>,
+    >,
+    conversation_participants:
+        std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<ConversationId, Vec<UserId>>>>,
 }
 
 impl Default for InMemoryMessageStore {
@@ -45,7 +52,32 @@ impl InMemoryMessageStore {
             messages: std::sync::Arc::new(tokio::sync::RwLock::new(
                 std::collections::HashMap::new(),
             )),
+            conversations: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
+            conversation_participants: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
+    }
+
+    pub async fn get_conversation_participants(
+        &self,
+        conversation_id: &ConversationId,
+    ) -> Option<Vec<UserId>> {
+        let participants = self.conversation_participants.read().await;
+        participants.get(conversation_id).cloned()
+    }
+
+    pub async fn add_conversation_participants(
+        &self,
+        conversation_id: ConversationId,
+        user_ids: Vec<UserId>,
+    ) {
+        let mut participants = self.conversation_participants.write().await;
+        participants
+            .entry(conversation_id)
+            .or_insert_with(|| user_ids);
     }
 }
 
@@ -102,6 +134,28 @@ impl MessageStore for InMemoryMessageStore {
         _device_id: &DeviceId,
     ) -> AppResult<()> {
         Ok(())
+    }
+
+    async fn save_conversation(&self, conversation: Conversation) -> AppResult<()> {
+        let mut convs = self.conversations.write().await;
+        convs.insert(conversation.id, conversation);
+        Ok(())
+    }
+
+    async fn get_user_conversations(&self, user_id: &UserId) -> AppResult<Vec<Conversation>> {
+        let convs = self.conversations.read().await;
+        let participants = self.conversation_participants.read().await;
+        let user_convs: Vec<Conversation> = convs
+            .values()
+            .filter(|c| {
+                participants
+                    .get(&c.id)
+                    .map(|p| p.contains(user_id))
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect();
+        Ok(user_convs)
     }
 }
 

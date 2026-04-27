@@ -8,7 +8,7 @@ pub mod user_repository;
 pub use conversation_repository::{ConversationRepository, PostgresConversationRepository};
 pub use device_repository::{DeviceRepository, PostgresDeviceRepository};
 pub use friend_repository::{FriendRepository, InMemoryFriendRepository, PostgresFriendRepository};
-pub use group_repository::{GroupRepository, PostgresGroupRepository};
+pub use group_repository::{GroupRepository, InMemoryGroupRepository, PostgresGroupRepository};
 pub use message_repository::{MessageRepository, PostgresMessageRepository};
 pub use user_repository::{PostgresUserRepository, UserRepository};
 

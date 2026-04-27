@@ -19,10 +19,14 @@ jobs:
             target: x86_64-unknown-linux-gnu
             artifact_name: chat-server
             asset_name: chat-server-linux-x86_64
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
             artifact_name: chat-server
             asset_name: chat-server-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: chat-server
+            asset_name: chat-server-macos-aarch64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: chat-server.exe
@@ -73,10 +77,15 @@ jobs:
           cd artifacts
           tar -czvf chat-server-linux-x86_64.tar.gz chat-server-linux-x86_64
 
-      - name: Create release archive (macOS)
+      - name: Create release archive (macOS x86_64)
         run: |
           cd artifacts
           tar -czvf chat-server-macos-x86_64.tar.gz chat-server-macos-x86_64
+
+      - name: Create release archive (macOS aarch64)
+        run: |
+          cd artifacts
+          tar -czvf chat-server-macos-aarch64.tar.gz chat-server-macos-aarch64
 
       - name: Create release
         uses: softprops/action-gh-release@v3
@@ -86,15 +95,17 @@ jobs:
             ## Chat-General ${{ steps.get_version.outputs.VERSION }}
             
             ### Downloads
-            - **Linux**: `chat-server-linux-x86_64.tar.gz`
-            - **macOS**: `chat-server-macos-x86_64.tar.gz`
-            - **Windows**: `chat-server-windows-x86_64.exe`
+            - **Linux (x86_64)**: `chat-server-linux-x86_64.tar.gz`
+            - **macOS (Intel)**: `chat-server-macos-x86_64.tar.gz`
+            - **macOS (Apple Silicon)**: `chat-server-macos-aarch64.tar.gz`
+            - **Windows (x86_64)**: `chat-server-windows-x86_64.exe`
             
             ### Installation
             See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for installation instructions.
           files: |
             artifacts/chat-server-linux-x86_64.tar.gz
             artifacts/chat-server-macos-x86_64.tar.gz
+            artifacts/chat-server-macos-aarch64.tar.gz
             artifacts/chat-server-windows-x86_64.exe
           draft: false
           prerelease: false

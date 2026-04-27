@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 
 use crate::domain::Message;
@@ -17,24 +19,28 @@ pub trait MessageHandler: Send + Sync {
     async fn on_message(&self, message: &Message, session: &Session) -> AppResult<HandlerAction>;
 }
 
+#[derive(Clone)]
 pub struct HandlerChain {
-    handlers: Vec<Box<dyn MessageHandler>>,
+    handlers: Arc<Vec<Arc<dyn MessageHandler>>>,
 }
 
 impl HandlerChain {
     pub fn new() -> Self {
         Self {
-            handlers: Vec::new(),
+            handlers: Arc::new(Vec::new()),
         }
     }
 
-    pub fn with_handler(mut self, handler: Box<dyn MessageHandler>) -> Self {
-        self.handlers.push(handler);
-        self
+    pub fn with_handler(self, handler: Arc<dyn MessageHandler>) -> Self {
+        let mut handlers = (*self.handlers).clone();
+        handlers.push(handler);
+        Self {
+            handlers: Arc::new(handlers),
+        }
     }
 
     pub async fn process(&self, mut message: Message, session: &Session) -> AppResult<Message> {
-        for handler in &self.handlers {
+        for handler in self.handlers.iter() {
             match handler.on_message(&message, session).await? {
                 HandlerAction::Continue => continue,
                 HandlerAction::Modify(modified) => message = modified,
@@ -104,7 +110,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handler_chain() {
-        let chain = HandlerChain::new().with_handler(Box::new(LoggingHandler));
+        let chain = HandlerChain::new().with_handler(Arc::new(LoggingHandler));
 
         let conv_id = ConversationId::new();
         let user_id = UserId::new();

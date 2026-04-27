@@ -1,5 +1,6 @@
 pub mod auth_extractor;
 pub mod dto;
+pub mod extractor;
 pub mod handlers;
 pub mod websocket;
 
@@ -9,13 +10,23 @@ pub use handlers::*;
 pub use websocket::*;
 
 use crate::auth::JwtAuthProvider;
+use crate::config::Settings;
+use crate::error::AppResult;
 use crate::event::EventBus;
 use crate::friend::FriendService;
 use crate::group::GroupService;
-use crate::infra::{create_user_store, InMemoryFriendRepository, UserStorage};
-use crate::message::InMemoryMessageStore;
+use crate::infra::cache::redis::{RedisCache, TokenBlacklist as RedisTokenBlacklist};
+use crate::infra::db::{
+    create_pool, run_migrations, InMemoryGroupRepository, PostgresFriendRepository,
+};
+use crate::infra::{
+    create_user_store, InMemoryFriendRepository, InMemoryTokenBlacklist, PostgresUserStore,
+    TokenBlacklistStore, UserStorage,
+};
+use crate::message::{HandlerChain, InMemoryMessageStore};
 use crate::session::{DeviceRegistry, SessionManager};
 use axum::{
+    response::Json,
     routing::{delete, get, post, put},
     Router,
 };
@@ -31,6 +42,8 @@ pub struct AppState {
     pub group_service: Arc<dyn GroupService>,
     pub jwt_provider: Arc<JwtAuthProvider>,
     pub user_store: Arc<dyn UserStorage>,
+    pub token_blacklist: Arc<dyn TokenBlacklistStore>,
+    pub handler_chain: HandlerChain,
 }
 
 impl Default for AppState {
@@ -45,10 +58,13 @@ impl AppState {
         let friend_repo = InMemoryFriendRepository::new();
         let friend_service = Arc::new(crate::friend::FriendManager::new(friend_repo, event_bus));
 
-        let group_service = Arc::new(crate::group::GroupManager::new());
+        let group_repo = InMemoryGroupRepository::new();
+        let group_service = Arc::new(crate::group::GroupManager::new(group_repo));
 
         let jwt_settings = crate::config::Settings::default().jwt;
-        let jwt_provider = Arc::new(JwtAuthProvider::new(&jwt_settings));
+        let token_blacklist: Arc<dyn TokenBlacklistStore> = Arc::new(InMemoryTokenBlacklist::new());
+        let jwt_provider =
+            Arc::new(JwtAuthProvider::new(&jwt_settings).with_blacklist(token_blacklist.clone()));
 
         let user_store = create_user_store();
 
@@ -60,7 +76,45 @@ impl AppState {
             group_service,
             jwt_provider,
             user_store,
+            token_blacklist,
+            handler_chain: HandlerChain::new(),
         }
+    }
+
+    pub async fn from_settings(settings: &Settings) -> AppResult<Self> {
+        let event_bus = EventBus::new();
+
+        let pool = create_pool(&settings.database).await?;
+        run_migrations(&pool).await?;
+        tracing::info!("Database connected and migrations applied");
+
+        let redis_cache = RedisCache::new(&settings.redis.connection_string())?;
+        tracing::info!("Redis connected");
+
+        let friend_repo = PostgresFriendRepository::new(pool.clone());
+        let friend_service = Arc::new(crate::friend::FriendManager::new(friend_repo, event_bus));
+
+        let group_repo = crate::infra::db::PostgresGroupRepository::new(pool.clone());
+        let group_service = Arc::new(crate::group::GroupManager::new(group_repo));
+
+        let token_blacklist: Arc<dyn TokenBlacklistStore> =
+            Arc::new(RedisTokenBlacklist::new(redis_cache.clone()));
+        let jwt_provider =
+            Arc::new(JwtAuthProvider::new(&settings.jwt).with_blacklist(token_blacklist.clone()));
+
+        let user_store: Arc<dyn UserStorage> = Arc::new(PostgresUserStore::new(pool.clone()));
+
+        Ok(Self {
+            device_registry: DeviceRegistry::new(),
+            session_manager: SessionManager::new(),
+            message_store: InMemoryMessageStore::new(),
+            friend_service,
+            group_service,
+            jwt_provider,
+            user_store,
+            token_blacklist,
+            handler_chain: HandlerChain::new(),
+        })
     }
 }
 
@@ -124,9 +178,17 @@ pub fn create_routes() -> Router<AppState> {
         );
 
     Router::new()
+        .route("/health", get(health_check))
         .route("/ws", get(websocket::ws_handler))
         .nest("/api/v1", api_routes)
         .fallback_service(ServeDir::new("static").append_index_html_on_directories(true))
+}
+
+async fn health_check() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION"),
+    }))
 }
 
 #[cfg(test)]

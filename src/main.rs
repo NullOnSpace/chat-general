@@ -14,7 +14,7 @@ async fn main() -> anyhow::Result<()> {
         "Starting Chat-General server"
     );
 
-    let server = ChatServer::builder().settings(settings).build()?;
+    let server = ChatServer::builder().settings(settings).build().await?;
 
     server.run().await?;
 

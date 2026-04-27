@@ -1,4 +1,7 @@
 /target
+
+.cursor/
+
 # 云端测试审查的报告
 /report
 .env

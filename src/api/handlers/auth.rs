@@ -3,8 +3,8 @@ use garde::Validate;
 use serde_json::json;
 
 use crate::api::dto::*;
+use crate::api::extractor::CurrentUser;
 use crate::api::AppState;
-use crate::api::AuthorizationHeader;
 use crate::auth::{AuthProvider, PasswordHasher};
 use crate::domain::User;
 use crate::error::{AppError, AppResult};
@@ -57,7 +57,7 @@ pub async fn login(
         .await
         .ok_or_else(|| {
             tracing::warn!(username = %req.username, "Login failed: user not found");
-            AppError::Unauthorized("User not found".to_string())
+            AppError::Auth(crate::error::AuthError::InvalidCredentials)
         })?;
 
     let password_hasher = PasswordHasher::new();
@@ -65,7 +65,7 @@ pub async fn login(
 
     if !is_valid {
         tracing::warn!(username = %req.username, "Login failed: invalid password");
-        return Err(AppError::Unauthorized("Invalid password".to_string()));
+        return Err(AppError::Auth(crate::error::AuthError::InvalidCredentials));
     }
 
     let roles = vec!["user".to_string()];
@@ -108,7 +108,23 @@ pub async fn refresh(
     })))
 }
 
-pub async fn logout() -> AppResult<Json<SuccessResponse>> {
+pub async fn logout(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> AppResult<Json<SuccessResponse>> {
+    state
+        .token_blacklist
+        .add(
+            current_user
+                .jti
+                .as_deref()
+                .unwrap_or(&current_user.user_id.to_string()),
+            state.jwt_provider.refresh_token_expiry_seconds(),
+        )
+        .await?;
+
+    tracing::info!(user_id = %current_user.user_id, "User logged out");
+
     Ok(Json(SuccessResponse {
         success: true,
         message: "Logged out successfully".to_string(),
@@ -117,21 +133,11 @@ pub async fn logout() -> AppResult<Json<SuccessResponse>> {
 
 pub async fn get_current_user(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
-        AuthorizationHeader,
-    >,
+    current_user: CurrentUser,
 ) -> AppResult<Json<UserResponse>> {
-    let token = headers.token();
-
-    let claims = state
-        .jwt_provider
-        .validate_token(token)
-        .await
-        .map_err(|_| AppError::Unauthorized("Invalid token".to_string()))?;
-
     let user = state
         .user_store
-        .get_by_id(&claims.user_id.to_string())
+        .get_by_id(&current_user.user_id.to_string())
         .await
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
@@ -146,19 +152,9 @@ pub async fn get_user_devices() -> AppResult<Json<serde_json::Value>> {
 
 pub async fn search_users(
     State(state): State<AppState>,
-    axum_extra::extract::TypedHeader(headers): axum_extra::extract::TypedHeader<
-        AuthorizationHeader,
-    >,
+    _current_user: CurrentUser,
     axum::extract::Query(params): axum::extract::Query<SearchUsersQuery>,
 ) -> AppResult<Json<serde_json::Value>> {
-    let token = headers.token();
-
-    state
-        .jwt_provider
-        .validate_token(token)
-        .await
-        .map_err(|_| AppError::Unauthorized("Invalid token".to_string()))?;
-
     let query = params.q.unwrap_or_default();
     let users: Vec<serde_json::Value> = state
         .user_store

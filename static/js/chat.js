@@ -4,6 +4,7 @@ let groups = [];
 let messages = {};
 let currentTab = 'chats';
 let deviceId = null;
+let pendingMessages = new Map();
 
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('access_token');
@@ -55,7 +56,7 @@ async function startConversationWithFriend(friendId) {
 }
 
 function generateDeviceId() {
-    return 'device-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
+    return crypto.randomUUID();
 }
 
 function initWebSocket() {
@@ -66,19 +67,39 @@ function initWebSocket() {
         console.log('WebSocket connected');
     });
 
-    wsClient.on('message', (message) => {
+    wsClient.on('message', (data) => {
+        const message = {
+            id: data.id,
+            conversation_id: data.conversation_id,
+            sender_id: data.sender_id,
+            content: data.content,
+            message_type: data.message_type,
+            created_at: data.created_at,
+            status: 'delivered',
+        };
         addMessageToUI(message);
         updateConversationLastMessage(message);
     });
 
-    wsClient.on('message_sent', (message) => {
+    wsClient.on('message_sent', (data) => {
+        const tempId = pendingMessages.get(data.seq);
+        const message = {
+            id: data.id,
+            temp_id: tempId,
+            conversation_id: data.conversation_id,
+            sender_id: data.sender_id,
+            content: data.content,
+            message_type: data.message_type,
+            created_at: data.created_at,
+            status: 'sent',
+        };
         addMessageToUI(message);
         updateConversationLastMessage(message);
     });
 
     wsClient.on('typing', (data) => {
         if (currentConversation && currentConversation.id === data.conversation_id) {
-            showTypingIndicator(data.user_name);
+            showTypingIndicator(data.user_name || 'Someone');
         }
     });
 
@@ -109,6 +130,7 @@ async function loadGroups() {
     try {
         const response = await getGroups();
         groups = response.groups || [];
+        renderConversations();
     } catch (error) {
         console.error('Failed to load groups:', error);
     }
@@ -150,11 +172,11 @@ function renderConversations() {
                 </div>
                 <div class="ml-3 flex-1 min-w-0">
                     <div class="flex justify-between items-center">
-                        <h4 class="font-medium text-gray-800 truncate">${item.name || item.display_name || 'Unknown'}</h4>
+                        <h4 class="font-medium text-gray-800 truncate">${escapeHtml(item.name || item.display_name || 'Unknown')}</h4>
                         ${time ? `<span class="text-xs text-gray-500">${time}</span>` : ''}
                     </div>
                     <div class="flex justify-between items-center">
-                        <p class="text-sm text-gray-500 truncate">${lastMessage}</p>
+                        <p class="text-sm text-gray-500 truncate">${escapeHtml(lastMessage)}</p>
                         ${unread > 0 ? `<span class="bg-purple-600 text-white text-xs rounded-full px-2 py-0.5">${unread}</span>` : ''}
                     </div>
                 </div>
@@ -219,8 +241,8 @@ function renderMessages() {
 
         div.innerHTML = `
             <div class="max-w-xs md:max-w-md lg:max-w-lg">
-                ${!isSent && currentConversation?.conversation_type === 'group' ? 
-                    `<p class="text-xs text-gray-500 mb-1">${msg.sender_name || 'Unknown'}</p>` : ''}
+                ${!isSent && currentConversation?.conversation_type === 'group' ?
+                    `<p class="text-xs text-gray-500 mb-1">${escapeHtml(msg.sender_name || 'Unknown')}</p>` : ''}
                 <div class="${isSent ? 'message-bubble-sent text-white' : 'message-bubble-received text-gray-800'} px-4 py-2 rounded-2xl ${isSent ? 'rounded-br-md' : 'rounded-bl-md'}">
                     <p>${escapeHtml(msg.content)}</p>
                 </div>
@@ -246,11 +268,14 @@ function addMessageToUI(message) {
         messages[message.conversation_id] = [];
     }
 
-    const existingIndex = messages[message.conversation_id].findIndex(m => m.temp_id === message.temp_id);
+    const existingIndex = messages[message.conversation_id].findIndex(m => m.temp_id && m.temp_id === message.temp_id);
     if (existingIndex >= 0) {
         messages[message.conversation_id][existingIndex] = message;
     } else {
-        messages[message.conversation_id].push(message);
+        const existingById = messages[message.conversation_id].findIndex(m => m.id === message.id);
+        if (existingById < 0) {
+            messages[message.conversation_id].push(message);
+        }
     }
 
     renderMessages();
@@ -286,7 +311,8 @@ function sendMessage() {
 
     addMessageToUI(tempMessage);
 
-    wsClient.sendMessage(currentConversation.id, content, tempId);
+    const seq = wsClient.sendMessage(currentConversation.id, content, tempId);
+    pendingMessages.set(seq, tempId);
 
     input.value = '';
 }
@@ -334,11 +360,15 @@ function updateOnlineStatus(userId, isOnline) {
 
 function switchTab(tab) {
     currentTab = tab;
-    
+
     document.getElementById('tab-chats').className = `flex-1 py-3 text-center font-medium ${tab === 'chats' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700'}`;
     document.getElementById('tab-groups').className = `flex-1 py-3 text-center font-medium ${tab === 'groups' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700'}`;
 
-    renderConversations();
+    if (tab === 'groups') {
+        loadGroups();
+    } else {
+        renderConversations();
+    }
 }
 
 function toggleSidebar() {
@@ -358,7 +388,7 @@ function hideNewConversationModal() {
     document.getElementById('new-conv-username').value = '';
 }
 
-async function createConversation() {
+async function handleCreateConversation() {
     const username = document.getElementById('new-conv-username').value.trim();
     if (!username) return;
 
@@ -366,16 +396,16 @@ async function createConversation() {
         const userResponse = await searchUsers(username);
         if (userResponse.users && userResponse.users.length > 0) {
             const userId = userResponse.users[0].id;
-            
+
             const friendsResponse = await getFriends();
             const isFriend = friendsResponse.friends?.some(f => f.friend_id === userId);
-            
+
             if (!isFriend) {
                 alert('You can only start a conversation with friends. Add this user as a friend first!');
                 window.location.href = '/friends.html';
                 return;
             }
-            
+
             await createConversation([userId]);
             hideNewConversationModal();
             await loadConversations();
@@ -384,7 +414,7 @@ async function createConversation() {
         }
     } catch (error) {
         console.error('Failed to create conversation:', error);
-        if (error.message.includes('not friends') || error.message.includes('permission')) {
+        if (error.message.includes('not friends') || error.message.includes('friend')) {
             alert('You can only start a conversation with friends. Add this user as a friend first!');
         } else {
             alert('Failed to create conversation: ' + error.message);
@@ -417,6 +447,7 @@ async function createGroup() {
 }
 
 function getInitials(name) {
+    if (!name) return '?';
     return name
         .split(' ')
         .map(word => word[0])
@@ -456,3 +487,9 @@ function escapeHtml(text) {
 window.addEventListener('beforeunload', () => {
     wsClient.disconnect();
 });
+
+function handleLogout() {
+    api.clearToken();
+    wsClient.disconnect();
+    window.location.href = '/';
+}

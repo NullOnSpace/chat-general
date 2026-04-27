@@ -42,9 +42,11 @@ impl From<Uuid> for DeviceId {
     }
 }
 
-impl From<String> for DeviceId {
-    fn from(s: String) -> Self {
-        Self(Uuid::parse_str(&s).expect("Invalid DeviceId"))
+impl TryFrom<String> for DeviceId {
+    type Error = uuid::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Uuid::parse_str(&s).map(Self)
     }
 }
 

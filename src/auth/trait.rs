@@ -42,6 +42,7 @@ pub struct AuthUser {
     pub user_id: UserId,
     pub username: String,
     pub roles: Vec<String>,
+    pub jti: Option<String>,
 }
 
 impl AuthUser {
@@ -50,6 +51,7 @@ impl AuthUser {
             user_id,
             username,
             roles: Vec::new(),
+            jti: None,
         }
     }
 

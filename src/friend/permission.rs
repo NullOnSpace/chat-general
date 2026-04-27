@@ -111,10 +111,18 @@ mod tests {
         ) -> AppResult<FriendRequest> {
             Ok(FriendRequest::new(UserId::new(), UserId::new(), None))
         }
-        async fn accept_request(&self, _request_id: &FriendRequestId) -> AppResult<Friendship> {
+        async fn accept_request(
+            &self,
+            _current_user_id: &UserId,
+            _request_id: &FriendRequestId,
+        ) -> AppResult<Friendship> {
             Ok(Friendship::new(UserId::new(), UserId::new()))
         }
-        async fn reject_request(&self, _request_id: &FriendRequestId) -> AppResult<()> {
+        async fn reject_request(
+            &self,
+            _current_user_id: &UserId,
+            _request_id: &FriendRequestId,
+        ) -> AppResult<()> {
             Ok(())
         }
         async fn remove_friend(&self, _user_id: &UserId, _friend_id: &UserId) -> AppResult<()> {

@@ -1,3 +1,9 @@
+let wsSeq = 0;
+
+function nextSeq() {
+    return ++wsSeq;
+}
+
 class WebSocketClient {
     constructor() {
         this.ws = null;
@@ -6,11 +12,16 @@ class WebSocketClient {
         this.reconnectDelay = 1000;
         this.messageHandlers = new Map();
         this.isConnected = false;
+        this._token = null;
+        this._deviceId = null;
     }
 
     connect(token, deviceId) {
+        this._token = token;
+        this._deviceId = deviceId;
+
         const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?token=${encodeURIComponent(token)}&device_id=${encodeURIComponent(deviceId)}`;
-        
+
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
@@ -24,12 +35,12 @@ class WebSocketClient {
             console.log('WebSocket disconnected:', event.code, event.reason);
             this.isConnected = false;
             this.emit('disconnected');
-            
+
             if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
                 setTimeout(() => {
                     this.reconnectAttempts++;
                     console.log(`Reconnecting... Attempt ${this.reconnectAttempts}`);
-                    this.connect(token, deviceId);
+                    this.connect(this._token, this._deviceId);
                 }, this.reconnectDelay * this.reconnectAttempts);
             }
         };
@@ -50,70 +61,82 @@ class WebSocketClient {
     }
 
     handleMessage(data) {
-        const { type, payload } = data;
-        
+        const type = data.type;
+
         switch (type) {
             case 'connected':
-                console.log('WebSocket connected:', payload);
-                this.emit('connected', payload);
+                console.log('WebSocket connected:', data);
+                this.emit('connected', data);
                 break;
             case 'message':
-                this.emit('message', payload);
+                this.emit('message', data);
                 break;
             case 'message_sent':
-                this.emit('message_sent', payload);
+                this.emit('message_sent', data);
                 break;
             case 'typing':
-                this.emit('typing', payload);
+                this.emit('typing', {
+                    user_id: data.user_id,
+                    conversation_id: data.conversation_id,
+                    is_typing: data.is_typing,
+                    user_name: data.user_name,
+                });
                 break;
-            case 'user_online':
-                this.emit('user_online', payload);
+            case 'presence':
+                this.emit(data.is_online ? 'user_online' : 'user_offline', {
+                    user_id: data.user_id,
+                    device_id: data.device_id,
+                });
                 break;
-            case 'user_offline':
-                this.emit('user_offline', payload);
+            case 'ack':
+                this.emit('ack', data);
                 break;
             case 'message_read':
-                this.emit('message_read', payload);
-                break;
-            case 'group_member_joined':
-                this.emit('group_member_joined', payload);
-                break;
-            case 'group_member_left':
-                this.emit('group_member_left', payload);
+                this.emit('message_read', data);
                 break;
             case 'error':
-                console.error('Server error:', payload);
-                this.emit('error', payload);
+                console.error('Server error:', data);
+                this.emit('error', data);
                 break;
             default:
                 console.log('Unknown message type:', type, data);
         }
     }
 
-    send(type, payload) {
+    send(data) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type, payload }));
+            this.ws.send(JSON.stringify(data));
         } else {
             console.warn('WebSocket is not connected');
         }
     }
 
     sendMessage(conversationId, content, tempId) {
-        this.send('send_message', {
+        const seq = nextSeq();
+        this.send({
+            type: 'message',
             conversation_id: conversationId,
-            content,
-            temp_id: tempId,
+            content: content,
+            message_type: 'text',
+            reply_to: null,
+            seq: seq,
         });
+        return seq;
     }
 
     sendTyping(conversationId) {
-        this.send('typing', { conversation_id: conversationId });
+        this.send({
+            type: 'typing',
+            conversation_id: conversationId,
+            is_typing: true,
+        });
     }
 
     markAsRead(conversationId, messageId) {
-        this.send('mark_read', {
-            conversation_id: conversationId,
+        this.send({
+            type: 'ack',
             message_id: messageId,
+            seq: nextSeq(),
         });
     }
 
@@ -150,3 +173,4 @@ class WebSocketClient {
 }
 
 const wsClient = new WebSocketClient();
+window.wsClient = wsClient;

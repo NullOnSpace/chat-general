@@ -157,7 +157,7 @@ async function getGroupMembers(groupId) {
 }
 
 async function addGroupMember(groupId, userId) {
-    return api.post(`/groups/${groupId}/members`, { user_id: userId });
+    return api.put(`/groups/${groupId}/members`, { user_id: userId });
 }
 
 async function removeGroupMember(groupId, userId) {
@@ -172,7 +172,6 @@ async function getCurrentUser() {
     return api.get('/auth/me');
 }
 
-// Friend API
 async function getFriends() {
     return api.get('/friends');
 }

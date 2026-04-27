@@ -584,3 +584,162 @@ async fn test_friend_flow_complete() {
         "User1 should no longer have user2 as friend"
     );
 }
+
+#[tokio::test]
+#[serial]
+async fn test_accept_friend_request_wrong_recipient() {
+    let app = TestApp::new().await;
+    let user1 = TestUser::create_unique(&app).await;
+    let user2 = TestUser::create_unique(&app).await;
+    let user3 = TestUser::create_unique(&app).await;
+
+    let client = app.client();
+
+    client
+        .post(format!("{}/api/v1/friends/requests", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user1.access_token))
+        .json(&json!({
+            "to_user_id": user2.id,
+            "message": "Hi!"
+        }))
+        .send()
+        .await
+        .expect("Failed to send friend request");
+
+    let requests_response = client
+        .get(format!("{}/api/v1/friends/requests", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user2.access_token))
+        .send()
+        .await
+        .expect("Failed to get requests");
+    let requests_data: serde_json::Value = requests_response.json().await.expect("Failed to parse");
+    let request_id = requests_data["requests"][0]["id"]
+        .as_str()
+        .expect("Should have request ID");
+
+    let accept_response = client
+        .put(format!(
+            "{}/api/v1/friends/requests/{}/accept",
+            app.base_url(),
+            request_id
+        ))
+        .header("Authorization", format!("Bearer {}", user3.access_token))
+        .send()
+        .await
+        .expect("Failed to accept friend request");
+
+    assert!(
+        !accept_response.status().is_success(),
+        "User3 should not be able to accept a request sent to User2"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn test_reject_then_resend_friend_request() {
+    let app = TestApp::new().await;
+    let user1 = TestUser::create_unique(&app).await;
+    let user2 = TestUser::create_unique(&app).await;
+
+    let client = app.client();
+
+    client
+        .post(format!("{}/api/v1/friends/requests", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user1.access_token))
+        .json(&json!({
+            "to_user_id": user2.id,
+            "message": "Hi!"
+        }))
+        .send()
+        .await
+        .expect("Failed to send friend request");
+
+    let requests_response = client
+        .get(format!("{}/api/v1/friends/requests", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user2.access_token))
+        .send()
+        .await
+        .expect("Failed to get requests");
+    let requests_data: serde_json::Value = requests_response.json().await.expect("Failed to parse");
+    let request_id = requests_data["requests"][0]["id"]
+        .as_str()
+        .expect("Should have request ID");
+
+    let reject_response = client
+        .delete(format!(
+            "{}/api/v1/friends/requests/{}/reject",
+            app.base_url(),
+            request_id
+        ))
+        .header("Authorization", format!("Bearer {}", user2.access_token))
+        .send()
+        .await
+        .expect("Failed to reject friend request");
+    assert!(reject_response.status().is_success());
+
+    let resend_response = client
+        .post(format!("{}/api/v1/friends/requests", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user1.access_token))
+        .json(&json!({
+            "to_user_id": user2.id,
+            "message": "Hi again!"
+        }))
+        .send()
+        .await
+        .expect("Failed to resend friend request");
+
+    assert!(
+        resend_response.status().is_success(),
+        "Should be able to resend friend request after rejection"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn test_friend_request_without_message() {
+    let app = TestApp::new().await;
+    let user1 = TestUser::create_unique(&app).await;
+    let user2 = TestUser::create_unique(&app).await;
+
+    let client = app.client();
+    let response = client
+        .post(format!("{}/api/v1/friends/requests", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user1.access_token))
+        .json(&json!({
+            "to_user_id": user2.id
+        }))
+        .send()
+        .await
+        .expect("Failed to send friend request without message");
+
+    assert!(
+        response.status().is_success(),
+        "Friend request without message should succeed"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn test_sent_requests_empty() {
+    let app = TestApp::new().await;
+    let user = TestUser::create_unique(&app).await;
+
+    let client = app.client();
+    let response = client
+        .get(format!("{}/api/v1/friends/requests/sent", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user.access_token))
+        .send()
+        .await
+        .expect("Failed to get sent requests");
+
+    assert!(
+        response.status().is_success(),
+        "Get sent requests should succeed"
+    );
+
+    let data: serde_json::Value = response.json().await.expect("Failed to parse response");
+    let requests = data["requests"]
+        .as_array()
+        .expect("Should have requests array");
+    assert!(requests.is_empty(), "Should have no sent requests");
+}

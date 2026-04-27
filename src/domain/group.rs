@@ -46,9 +46,11 @@ impl From<Uuid> for GroupId {
     }
 }
 
-impl From<String> for GroupId {
-    fn from(s: String) -> Self {
-        Self(Uuid::parse_str(&s).expect("Invalid GroupId"))
+impl TryFrom<String> for GroupId {
+    type Error = uuid::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Uuid::parse_str(&s).map(Self)
     }
 }
 

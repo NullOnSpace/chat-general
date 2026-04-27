@@ -48,15 +48,19 @@ impl From<Uuid> for UserId {
     }
 }
 
-impl From<String> for UserId {
-    fn from(s: String) -> Self {
-        Self(Uuid::parse_str(&s).expect("Invalid UserId"))
+impl TryFrom<String> for UserId {
+    type Error = uuid::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Uuid::parse_str(&s).map(Self)
     }
 }
 
-impl From<&str> for UserId {
-    fn from(s: &str) -> Self {
-        Self(Uuid::parse_str(s).expect("Invalid UserId"))
+impl TryFrom<&str> for UserId {
+    type Error = uuid::Error;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Uuid::parse_str(s).map(Self)
     }
 }
 
@@ -155,7 +159,7 @@ mod tests {
     fn test_user_id_from_string() {
         let uuid = Uuid::now_v7();
         let id_str = uuid.to_string();
-        let user_id: UserId = id_str.as_str().into();
+        let user_id: UserId = id_str.as_str().try_into().unwrap();
         assert_eq!(user_id.as_uuid(), &uuid);
     }
 

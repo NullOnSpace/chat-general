@@ -43,9 +43,11 @@ impl From<Uuid> for ConversationId {
     }
 }
 
-impl From<String> for ConversationId {
-    fn from(s: String) -> Self {
-        Self(Uuid::parse_str(&s).expect("Invalid ConversationId"))
+impl TryFrom<String> for ConversationId {
+    type Error = uuid::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Uuid::parse_str(&s).map(Self)
     }
 }
 

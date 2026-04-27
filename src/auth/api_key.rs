@@ -81,6 +81,7 @@ impl AuthProvider for ApiKeyAuthProvider {
             user_id: api_key.user_id,
             username: api_key.name,
             roles: api_key.scopes,
+            jti: None,
         })
     }
 

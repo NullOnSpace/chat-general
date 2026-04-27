@@ -1,5 +1,8 @@
 use async_trait::async_trait;
 use sqlx::PgPool;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use crate::domain::{Group, GroupId, GroupMember, GroupRole, UserId};
 use crate::error::{AppError, AppResult};
@@ -218,5 +221,151 @@ impl GroupRepository for PostgresGroupRepository {
         .await?;
 
         Ok(records)
+    }
+}
+
+pub struct InMemoryGroupRepository {
+    groups: Arc<RwLock<HashMap<GroupId, Group>>>,
+    user_groups: Arc<RwLock<HashMap<UserId, Vec<GroupId>>>>,
+}
+
+impl InMemoryGroupRepository {
+    pub fn new() -> Self {
+        Self {
+            groups: Arc::new(RwLock::new(HashMap::new())),
+            user_groups: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+}
+
+impl Default for InMemoryGroupRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl GroupRepository for InMemoryGroupRepository {
+    async fn create(&self, group: &Group) -> AppResult<Group> {
+        let group_id = group.id;
+        let owner_id = group.owner_id;
+
+        {
+            let mut groups = self.groups.write().await;
+            groups.insert(group_id, group.clone());
+        }
+
+        {
+            let mut user_groups = self.user_groups.write().await;
+            user_groups.entry(owner_id).or_default().push(group_id);
+        }
+
+        Ok(group.clone())
+    }
+
+    async fn find_by_id(&self, id: &GroupId) -> AppResult<Option<Group>> {
+        let groups = self.groups.read().await;
+        Ok(groups.get(id).cloned())
+    }
+
+    async fn find_by_user(&self, user_id: &UserId) -> AppResult<Vec<Group>> {
+        let user_groups = self.user_groups.read().await;
+        let groups = self.groups.read().await;
+
+        let group_ids = user_groups.get(user_id).cloned().unwrap_or_default();
+        let result = group_ids
+            .iter()
+            .filter_map(|id| groups.get(id).cloned())
+            .collect();
+
+        Ok(result)
+    }
+
+    async fn update(&self, group: &Group) -> AppResult<Group> {
+        let mut groups = self.groups.write().await;
+        groups.insert(group.id, group.clone());
+        Ok(group.clone())
+    }
+
+    async fn delete(&self, id: &GroupId) -> AppResult<()> {
+        let group = {
+            let mut groups = self.groups.write().await;
+            groups.remove(id)
+        };
+
+        if let Some(group) = group {
+            let mut user_groups = self.user_groups.write().await;
+            for member in group.members {
+                if let Some(list) = user_groups.get_mut(&member.user_id) {
+                    list.retain(|gid| gid != id);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn add_member(&self, group_id: &GroupId, member: &GroupMember) -> AppResult<()> {
+        {
+            let mut groups = self.groups.write().await;
+            if let Some(group) = groups.get_mut(group_id) {
+                group.members.push(member.clone());
+            }
+        }
+
+        {
+            let mut user_groups = self.user_groups.write().await;
+            user_groups
+                .entry(member.user_id)
+                .or_default()
+                .push(*group_id);
+        }
+
+        Ok(())
+    }
+
+    async fn remove_member(&self, group_id: &GroupId, user_id: &UserId) -> AppResult<()> {
+        {
+            let mut groups = self.groups.write().await;
+            if let Some(group) = groups.get_mut(group_id) {
+                group.members.retain(|m| &m.user_id != user_id);
+            }
+        }
+
+        {
+            let mut user_groups = self.user_groups.write().await;
+            if let Some(list) = user_groups.get_mut(user_id) {
+                list.retain(|gid| gid != group_id);
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn update_member_role(
+        &self,
+        group_id: &GroupId,
+        user_id: &UserId,
+        role: GroupRole,
+    ) -> AppResult<()> {
+        let mut groups = self.groups.write().await;
+        if let Some(group) = groups.get_mut(group_id) {
+            if let Some(member) = group.members.iter_mut().find(|m| &m.user_id == user_id) {
+                member.role = role;
+            }
+        }
+        Ok(())
+    }
+
+    async fn find_public_groups(&self, limit: i64, offset: i64) -> AppResult<Vec<Group>> {
+        let groups = self.groups.read().await;
+        let result: Vec<Group> = groups
+            .values()
+            .filter(|g| g.is_public)
+            .skip(offset as usize)
+            .take(limit as usize)
+            .cloned()
+            .collect();
+        Ok(result)
     }
 }

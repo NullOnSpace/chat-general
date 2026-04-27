@@ -1,11 +1,11 @@
-use once_cell::sync::Lazy;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::LazyLock;
 use tokio::task::JoinHandle;
 
 use chat_general::api::{create_routes, AppState};
 
-static NEXT_PORT: Lazy<AtomicU16> = Lazy::new(|| AtomicU16::new(19000));
+static NEXT_PORT: LazyLock<AtomicU16> = LazyLock::new(|| AtomicU16::new(19000));
 
 pub struct TestApp {
     pub address: String,

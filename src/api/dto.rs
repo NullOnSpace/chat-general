@@ -57,6 +57,8 @@ pub struct CreateGroupRequest {
     #[garde(skip)]
     pub description: Option<String>,
     #[garde(skip)]
+    pub member_ids: Option<Vec<String>>,
+    #[garde(skip)]
     pub max_members: Option<u32>,
     #[garde(skip)]
     pub is_public: Option<bool>,
@@ -189,6 +191,43 @@ impl From<crate::domain::Group> for GroupResponse {
 }
 
 #[derive(Debug, Serialize)]
+pub struct ApiResponse<T: Serialize> {
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+impl<T: Serialize> ApiResponse<T> {
+    pub fn ok(data: T) -> Self {
+        Self {
+            success: true,
+            data: Some(data),
+            message: None,
+        }
+    }
+
+    pub fn ok_with_message(data: T, message: impl Into<String>) -> Self {
+        Self {
+            success: true,
+            data: Some(data),
+            message: Some(message.into()),
+        }
+    }
+}
+
+impl ApiResponse<()> {
+    pub fn message(msg: impl Into<String>) -> Self {
+        Self {
+            success: true,
+            data: None,
+            message: Some(msg.into()),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     pub error: String,
     pub code: u16,
@@ -198,6 +237,15 @@ pub struct ErrorResponse {
 pub struct SuccessResponse {
     pub success: bool,
     pub message: String,
+}
+
+impl From<ApiResponse<()>> for SuccessResponse {
+    fn from(resp: ApiResponse<()>) -> Self {
+        Self {
+            success: resp.success,
+            message: resp.message.unwrap_or_default(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

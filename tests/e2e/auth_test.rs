@@ -422,3 +422,152 @@ async fn test_search_users_empty_query() {
         "Search users with empty query should succeed"
     );
 }
+
+#[tokio::test]
+#[serial]
+async fn test_register_short_username() {
+    let app = TestApp::new().await;
+    let client = app.client();
+
+    let response = client
+        .post(format!("{}/api/v1/auth/register", app.base_url()))
+        .json(&json!({
+            "username": "ab",
+            "email": "short@test.com",
+            "password": "password123"
+        }))
+        .send()
+        .await
+        .expect("Failed to send register request");
+
+    assert!(
+        !response.status().is_success(),
+        "Register with short username should fail"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn test_logout_invalidates_token() {
+    let app = TestApp::new().await;
+    let user = TestUser::create_unique(&app).await;
+
+    let client = app.client();
+
+    let logout_response = client
+        .post(format!("{}/api/v1/auth/logout", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user.access_token))
+        .send()
+        .await
+        .expect("Failed to logout");
+    assert!(
+        logout_response.status().is_success(),
+        "Logout should succeed"
+    );
+
+    let me_response = client
+        .get(format!("{}/api/v1/auth/me", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user.access_token))
+        .send()
+        .await
+        .expect("Failed to get current user");
+
+    assert!(
+        !me_response.status().is_success(),
+        "Access token should be invalidated after logout"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn test_get_current_user_via_users_me() {
+    let app = TestApp::new().await;
+    let user = TestUser::create_unique(&app).await;
+
+    let client = app.client();
+    let response = client
+        .get(format!("{}/api/v1/users/me", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user.access_token))
+        .send()
+        .await
+        .expect("Failed to get current user via /users/me");
+
+    assert!(
+        response.status().is_success(),
+        "Get current user via /users/me should succeed"
+    );
+
+    let data: serde_json::Value = response.json().await.expect("Failed to parse response");
+    assert_eq!(data["username"].as_str().unwrap(), user.username);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_get_user_devices() {
+    let app = TestApp::new().await;
+    let user = TestUser::create_unique(&app).await;
+
+    let client = app.client();
+    let response = client
+        .get(format!("{}/api/v1/users/me/devices", app.base_url()))
+        .header("Authorization", format!("Bearer {}", user.access_token))
+        .send()
+        .await
+        .expect("Failed to get user devices");
+
+    assert!(
+        response.status().is_success(),
+        "Get user devices should succeed"
+    );
+
+    let data: serde_json::Value = response.json().await.expect("Failed to parse response");
+    assert!(
+        data["devices"].as_array().is_some(),
+        "Should have devices array"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn test_health_check() {
+    let app = TestApp::new().await;
+    let client = app.client();
+
+    let response = client
+        .get(format!("{}/health", app.base_url()))
+        .send()
+        .await
+        .expect("Failed to send health check");
+
+    assert!(
+        response.status().is_success(),
+        "Health check should succeed"
+    );
+
+    let data: serde_json::Value = response.json().await.expect("Failed to parse response");
+    assert_eq!(data["status"].as_str().unwrap(), "ok");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_register_long_username() {
+    let app = TestApp::new().await;
+    let client = app.client();
+
+    let long_username = "a".repeat(51);
+    let response = client
+        .post(format!("{}/api/v1/auth/register", app.base_url()))
+        .json(&json!({
+            "username": long_username,
+            "email": "long@test.com",
+            "password": "password123"
+        }))
+        .send()
+        .await
+        .expect("Failed to send register request");
+
+    assert!(
+        !response.status().is_success(),
+        "Register with username over 50 chars should fail"
+    );
+}

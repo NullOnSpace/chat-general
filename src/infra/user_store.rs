@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -110,4 +111,98 @@ impl UserStorage for RwLock<InMemoryUserStore> {
 
 pub fn create_user_store() -> UserStore {
     Arc::new(RwLock::new(InMemoryUserStore::new()))
+}
+
+pub struct PostgresUserStore {
+    pool: PgPool,
+}
+
+impl PostgresUserStore {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl UserStorage for PostgresUserStore {
+    async fn create(&self, user: User) -> AppResult<User> {
+        let existing =
+            sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1 OR email = $2")
+                .bind(&user.username)
+                .bind(&user.email)
+                .fetch_optional(&self.pool)
+                .await?;
+
+        if let Some(existing) = existing {
+            if existing.username == user.username {
+                return Err(AppError::Conflict("Username already exists".to_string()));
+            }
+            if existing.email == user.email {
+                return Err(AppError::Conflict("Email already exists".to_string()));
+            }
+        }
+
+        let record = sqlx::query_as::<_, User>(
+            r#"
+            INSERT INTO users (id, username, email, password_hash, display_name, avatar_url, status, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING *
+            "#,
+        )
+        .bind(user.id.as_uuid())
+        .bind(&user.username)
+        .bind(&user.email)
+        .bind(&user.password_hash)
+        .bind(&user.display_name)
+        .bind(&user.avatar_url)
+        .bind(user.status.to_string())
+        .bind(user.created_at)
+        .bind(user.updated_at)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(record)
+    }
+
+    async fn get_by_id(&self, id: &str) -> Option<User> {
+        let uuid = match uuid::Uuid::parse_str(id) {
+            Ok(u) => u,
+            Err(_) => return None,
+        };
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+            .bind(uuid)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten()
+    }
+
+    async fn get_by_username(&self, username: &str) -> Option<User> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
+            .bind(username)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten()
+    }
+
+    async fn get_by_email(&self, email: &str) -> Option<User> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+            .bind(email)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten()
+    }
+
+    async fn search(&self, query: &str) -> Vec<User> {
+        let pattern = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));
+        sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE username ILIKE $1 OR email ILIKE $1 OR display_name ILIKE $1 LIMIT 20",
+        )
+        .bind(&pattern)
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
+    }
 }

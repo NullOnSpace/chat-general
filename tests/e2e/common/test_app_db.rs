@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use once_cell::sync::Lazy;
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::LazyLock;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 
@@ -9,9 +9,11 @@ use chat_general::api::{create_routes, AppState};
 use chat_general::config::Settings;
 use chat_general::domain::User;
 use chat_general::error::{AppError, AppResult};
+use chat_general::infra::InMemoryGroupRepository;
 use chat_general::infra::{run_migrations, UserStorage};
+use chat_general::message::HandlerChain;
 
-static NEXT_PORT: Lazy<AtomicU16> = Lazy::new(|| AtomicU16::new(20000));
+static NEXT_PORT: LazyLock<AtomicU16> = LazyLock::new(|| AtomicU16::new(20000));
 
 pub struct TestAppWithDb {
     pub address: String,
@@ -121,10 +123,13 @@ fn create_app_state(pool: PgPool) -> AppState {
     let friend_repo = PostgresFriendRepository::new(pool.clone());
     let friend_service = Arc::new(FriendManager::new(friend_repo, event_bus));
 
-    let group_service = Arc::new(GroupManager::new());
+    let group_service = Arc::new(GroupManager::new(InMemoryGroupRepository::new()));
 
     let jwt_settings = Settings::default().jwt;
-    let jwt_provider = Arc::new(JwtAuthProvider::new(&jwt_settings));
+    let token_blacklist: Arc<dyn chat_general::infra::TokenBlacklistStore> =
+        Arc::new(chat_general::infra::InMemoryTokenBlacklist::new());
+    let jwt_provider =
+        Arc::new(JwtAuthProvider::new(&jwt_settings).with_blacklist(token_blacklist.clone()));
 
     let user_store = Arc::new(DbUserStore::new(pool));
 
@@ -136,6 +141,8 @@ fn create_app_state(pool: PgPool) -> AppState {
         group_service,
         jwt_provider,
         user_store,
+        token_blacklist,
+        handler_chain: HandlerChain::new(),
     }
 }
 

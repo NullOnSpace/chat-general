@@ -15,8 +15,16 @@ pub trait FriendService: Send + Sync {
         to: UserId,
         message: Option<String>,
     ) -> AppResult<FriendRequest>;
-    async fn accept_request(&self, request_id: &FriendRequestId) -> AppResult<Friendship>;
-    async fn reject_request(&self, request_id: &FriendRequestId) -> AppResult<()>;
+    async fn accept_request(
+        &self,
+        current_user_id: &UserId,
+        request_id: &FriendRequestId,
+    ) -> AppResult<Friendship>;
+    async fn reject_request(
+        &self,
+        current_user_id: &UserId,
+        request_id: &FriendRequestId,
+    ) -> AppResult<()>;
     async fn remove_friend(&self, user_id: &UserId, friend_id: &UserId) -> AppResult<()>;
     async fn get_friends(&self, user_id: &UserId) -> AppResult<Vec<Friendship>>;
     async fn get_pending_requests(&self, user_id: &UserId) -> AppResult<Vec<FriendRequest>>;
@@ -81,12 +89,20 @@ impl<R: FriendRepository + 'static> FriendService for FriendManager<R> {
         Ok(saved)
     }
 
-    async fn accept_request(&self, request_id: &FriendRequestId) -> AppResult<Friendship> {
+    async fn accept_request(
+        &self,
+        current_user_id: &UserId,
+        request_id: &FriendRequestId,
+    ) -> AppResult<Friendship> {
         let request = self
             .repository
             .get_request(request_id)
             .await?
             .ok_or_else(|| AppError::NotFound(FriendError::RequestNotFound.to_string()))?;
+
+        if request.to_user != *current_user_id {
+            return Err(AppError::Auth(crate::error::AuthError::PermissionDenied));
+        }
 
         if !request.is_pending() {
             return Err(AppError::Validation(
@@ -114,12 +130,20 @@ impl<R: FriendRepository + 'static> FriendService for FriendManager<R> {
         Ok(friendship1)
     }
 
-    async fn reject_request(&self, request_id: &FriendRequestId) -> AppResult<()> {
+    async fn reject_request(
+        &self,
+        current_user_id: &UserId,
+        request_id: &FriendRequestId,
+    ) -> AppResult<()> {
         let request = self
             .repository
             .get_request(request_id)
             .await?
             .ok_or_else(|| AppError::NotFound(FriendError::RequestNotFound.to_string()))?;
+
+        if request.to_user != *current_user_id {
+            return Err(AppError::Auth(crate::error::AuthError::PermissionDenied));
+        }
 
         if !request.is_pending() {
             return Err(AppError::Validation(
@@ -240,7 +264,7 @@ mod tests {
         let to = UserId::new();
 
         let request = manager.send_request(from, to, None).await.unwrap();
-        let friendship = manager.accept_request(&request.id).await.unwrap();
+        let friendship = manager.accept_request(&to, &request.id).await.unwrap();
 
         assert_eq!(friendship.user_id, from);
         assert_eq!(friendship.friend_id, to);
@@ -258,7 +282,7 @@ mod tests {
         let to = UserId::new();
 
         let request = manager.send_request(from, to, None).await.unwrap();
-        manager.reject_request(&request.id).await.unwrap();
+        manager.reject_request(&to, &request.id).await.unwrap();
 
         assert!(!manager.is_friend(&from, &to).await.unwrap());
     }
@@ -273,7 +297,7 @@ mod tests {
         let to = UserId::new();
 
         let request = manager.send_request(from, to, None).await.unwrap();
-        manager.accept_request(&request.id).await.unwrap();
+        manager.accept_request(&to, &request.id).await.unwrap();
 
         assert!(manager.is_friend(&from, &to).await.unwrap());
 
@@ -325,7 +349,7 @@ mod tests {
         let to = UserId::new();
 
         let request = manager.send_request(from, to, None).await.unwrap();
-        manager.accept_request(&request.id).await.unwrap();
+        manager.accept_request(&to, &request.id).await.unwrap();
 
         let result = manager.send_request(from, to, None).await;
         assert!(result.is_err());

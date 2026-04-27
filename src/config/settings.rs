@@ -7,6 +7,8 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub redis: RedisSettings,
     pub jwt: JwtSettings,
+    #[serde(default)]
+    pub cors: CorsSettings,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -169,6 +171,56 @@ fn default_issuer() -> String {
     "chat-general".to_string()
 }
 
+impl JwtSettings {
+    pub fn validate_secret(&self) -> Result<(), String> {
+        if self.secret.len() < 32 {
+            return Err(format!(
+                "JWT secret must be at least 32 characters, got {}. Set CHAT__JWT__SECRET environment variable.",
+                self.secret.len()
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CorsSettings {
+    #[serde(default = "default_cors_origins")]
+    pub origins: Vec<String>,
+    #[serde(default = "default_cors_methods")]
+    pub methods: Vec<String>,
+    #[serde(default = "default_cors_headers")]
+    pub headers: Vec<String>,
+}
+
+impl Default for CorsSettings {
+    fn default() -> Self {
+        Self {
+            origins: default_cors_origins(),
+            methods: default_cors_methods(),
+            headers: default_cors_headers(),
+        }
+    }
+}
+
+fn default_cors_origins() -> Vec<String> {
+    vec!["http://localhost:3000".to_string()]
+}
+
+fn default_cors_methods() -> Vec<String> {
+    vec![
+        "GET".to_string(),
+        "POST".to_string(),
+        "PUT".to_string(),
+        "DELETE".to_string(),
+        "PATCH".to_string(),
+    ]
+}
+
+fn default_cors_headers() -> Vec<String> {
+    vec!["Authorization".to_string(), "Content-Type".to_string()]
+}
+
 impl Settings {
     pub fn new() -> Result<Self, config::ConfigError> {
         let config = config::Config::builder()
@@ -219,6 +271,7 @@ impl Default for Settings {
                 refresh_token_expiry: default_refresh_token_expiry(),
                 issuer: default_issuer(),
             },
+            cors: CorsSettings::default(),
         }
     }
 }

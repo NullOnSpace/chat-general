@@ -2,12 +2,13 @@ use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::JwtSettings;
 use crate::domain::UserId;
 use crate::error::{AppResult, AuthError};
-use crate::infra::TokenBlacklist;
+use crate::infra::TokenBlacklistStore;
 
 use super::{AuthProvider, AuthUser, TokenPair};
 
@@ -35,7 +36,7 @@ pub struct JwtAuthProvider {
     access_token_expiry: Duration,
     refresh_token_expiry: Duration,
     issuer: String,
-    blacklist: Option<TokenBlacklist>,
+    blacklist: Option<Arc<dyn TokenBlacklistStore>>,
 }
 
 impl JwtAuthProvider {
@@ -50,9 +51,13 @@ impl JwtAuthProvider {
         }
     }
 
-    pub fn with_blacklist(mut self, blacklist: TokenBlacklist) -> Self {
+    pub fn with_blacklist(mut self, blacklist: Arc<dyn TokenBlacklistStore>) -> Self {
         self.blacklist = Some(blacklist);
         self
+    }
+
+    pub fn refresh_token_expiry_seconds(&self) -> u64 {
+        self.refresh_token_expiry.num_seconds() as u64
     }
 
     fn generate_token(
@@ -150,6 +155,7 @@ impl AuthProvider for JwtAuthProvider {
             ),
             username: claims.username,
             roles: claims.roles,
+            jti: Some(claims.jti),
         })
     }
 
