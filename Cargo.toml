@@ -34,7 +34,7 @@ sqlx = { version = "0.8.6", features = ["runtime-tokio", "postgres", "uuid", "ch
 redis = { version = "1.2", features = ["tokio-comp", "connection-manager"] }
 
 # Authentication
-jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "10.4", features = ["aws_lc_rs"] }
 
 # Utilities
 uuid = { version = "1.23", features = ["v4", "v7", "serde"] }
