@@ -180,9 +180,7 @@ async fn handle_websocket(
         device_id: device_id.to_string(),
     };
     if let Err(e) = ws_sender
-        .send(WsMessage::Text(
-            serialize_ws_message(&connected_msg).into(),
-        ))
+        .send(WsMessage::Text(serialize_ws_message(&connected_msg).into()))
         .await
     {
         tracing::error!("Failed to send connected message: {}", e);
